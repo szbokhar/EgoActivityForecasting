@@ -2,6 +2,7 @@ Ego-centric Capstone Project: Activity and Action Forcasting
 ============================================================
 
 Author: Syed Zahir Bokhari
+
 Supervisor: Kris Kitani
 
 Overview
