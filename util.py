@@ -2,54 +2,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
-from random import shuffle
 from pprint import pprint
 from numpy.random import choice
 
-
-def parse_file(fn, type_list):
-    f = open(fn, 'r')
-    data = []
-
-    for line in f:
-        svals = line.rstrip('\r\n').split(' ')
-        vals = [f(a) for (f,a) in zip(type_list, svals)]
-        data.append(vals)
-
-    return data
-
-def get_points_and_colors(fn):
-    fcol = lambda x: float(x)/255
-    tmp = parse_file(fn, [float, float, float, fcol, fcol, fcol])
-    shuffle(tmp)
-    pts = np.array(tmp)
-    pts = pts[:,0:3]
-    col = [l[3:6] for l in tmp]
-
-    return (pts, np.array(col))
-
-def get_imagenames_and_path(fn):
-    tmp = parse_file(fn, [lambda x: x, float, float, float])
-    im = [l[0] for l in tmp]
-    path = [l[1:4] for l in tmp]
-
-    return (im, np.array(path))
-
-def get_pathlabels(fn):
-    tmp = parse_file(fn, [int])
-    full = []
-    [full.append(x[0]) for x in tmp]
-
-    return np.array(full)
-
-def get_labeldict(fn):
-    tmp = parse_file(fn, [int, lambda x : x])
-    ldict = {}
-
-    for r in tmp:
-        ldict[r[0]] = r[1]
-
-    return ldict
 
 def center_points(pts):
     dx = np.sum(pts, 0)/pts.shape[0]
@@ -75,6 +30,34 @@ def block_path(path, block_size):
 
     return bpath
 
+def make_voxel_grid(pts, colors, block_size, paths=None):
+    grid_coords = np.round(pts/block_size, 0).astype(int)
+
+    mx = np.min(grid_coords[:,0], 0)
+    mz = np.min(grid_coords[:,1], 0)
+    my = np.min(grid_coords[:,2], 0)
+    grid_coords[:,0] = grid_coords[:,0] - mx
+    grid_coords[:,1] = grid_coords[:,1] - mz
+    grid_coords[:,2] = grid_coords[:,2] - my
+
+    if paths is not None:
+        for i in range(len(paths)):
+            paths[i] = block_path(smooth_path(paths[i], 0.2, 0.1), block_size)
+            paths[i][:,0] = paths[i][:,0] - mx
+            paths[i][:,1] = paths[i][:,1] - mz
+            paths[i][:,2] = paths[i][:,2] - my
+
+    mx = np.max(grid_coords[:,0], 0)
+    mz = np.max(grid_coords[:,1], 0)
+    my = np.max(grid_coords[:,2], 0)
+    grid = np.zeros((mx+1, mz+1, my+1))
+
+    for i in range(grid_coords.shape[0]):
+        p = grid_coords[i,:]
+        grid[p[0], p[1], p[2]] += 1
+
+    return grid
+
 
 def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
     def get_direction(dx):
@@ -97,7 +80,6 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
         elif z < 0:
             return 6
 
-    path = block_path(smooth_path(path, 0.2, 0.1), block_size)
     ka2rl = {3:8, 4:10, 5:9, 6:11, 7:12}
     rl2id = lambda x: x-8
     sa_list = []
@@ -140,18 +122,8 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
 
     return sars_list
 
-def do_qlearn(sars, alpha, num_iter, rand_count):
-    mx = np.min(sars[:,0])
-    mz = np.min(sars[:,1])
-    my = np.min(sars[:,2])
-    sars[:, [0, 10]] -= mx
-    sars[:, [1, 11]] -= mz
-    sars[:, [2, 12]] -= my
-    mx = np.max(sars[:,0])
-    mz = np.max(sars[:,1])
-    my = np.max(sars[:,2])
-    Q = np.zeros((mx+1, my+1, 3,3,3,3,3, 13))
-    print(sars.shape[0])
+def do_qlearn(sars, qshape, alpha, num_iter, rand_count):
+    Q = np.zeros((qshape[0], qshape[2], 3,3,3,3,3, 13))
 
     for t in range(num_iter):
         print('-----', t)
@@ -222,37 +194,23 @@ def show_action_value(Q):
 
     plt.tight_layout()
 
-    plt.show()
-"""
-    for i in range(13):
-        a = fig.add_subplot(4,4,i+1)
-        plt.imshow(Q[:,:,0,0,0,0,0,i])
-        a.set_title('0,0,0,0,0,{0}'.format(i))
 
+
+def show_grid(grid):
     fig = plt.figure(2)
-    for i in range(13):
-        a = fig.add_subplot(4,4,i+1)
-        plt.imshow(Q[:,:,1,0,0,0,0,i])
-        a.set_title('1,0,0,0,0,{0}'.format(i))
 
-    fig = plt.figure(3)
-    for i in range(13):
-        a = fig.add_subplot(4,4,i+1)
-        plt.imshow(Q[:,:,1,1,0,0,0,i])
-        a.set_title('1,1,0,0,0,{0}'.format(i))
+    vmin = np.min(grid)
+    vmax = np.max(grid)/8
+    cmap_name = 'inferno'
 
-    fig = plt.figure(4)
-    for i in range(13):
-        a = fig.add_subplot(4,4,i+1)
-        plt.imshow(Q[:,:,2,1,0,0,0,i])
-        a.set_title('2,1,0,0,0,{0}'.format(i))
+    print(grid.shape, vmin, vmax)
 
-    fig = plt.figure(5)
-    for i in range(13):
-        a = fig.add_subplot(4,4,i+1)
-        plt.imshow(Q[:,:,2,2,0,0,0,i])
-        a.set_title('2,2,0,0,0,{0}'.format(i))
-    """
+    start = 50
+    for i in range(25):
+        a = fig.add_subplot(5,5,i+1)
+        plt.imshow(grid[:,start+i,:], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+        a.set_title(str(start+i))
+
 
 
 def make_basic_plot(pts, colors, path, num):
