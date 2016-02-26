@@ -14,7 +14,7 @@ def parse_file(fn, type_list):
 
 def get_points_and_colors(fn):
     fcol = lambda x: float(x)/255
-    tmp = parse_file(fn, [float, float, float, fcol, fcol, fcol])
+    tmp = parse_file(fn, [float, float, float, fcol, fcol, fcol, fcol])
     shuffle(tmp)
     pts = np.array(tmp)
     pts = pts[:,0:3]
