@@ -1,9 +1,10 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.spatial
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from pprint import pprint
-from numpy.random import choice
+from numpy.random import choice, rand, randint
 
 
 def center_points(pts):
@@ -59,7 +60,7 @@ def make_voxel_grid(pts, colors, block_size, paths=None):
     return grid
 
 
-def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
+def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size, final_reward=1, med_reward=0):
     def get_direction(dx):
         x = dx[0]
         z = dx[1]
@@ -80,8 +81,8 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
         elif z < 0:
             return 6
 
-    ka2rl = {3:8, 4:10, 5:9, 6:11, 7:12}
-    rl2id = lambda x: x-8
+    ka2rl = {3:7, 4:9, 5:8, 6:10, 7:11}
+    rl2id = lambda x: x-7
     sa_list = []
     boa = [0, 0, 0, 0, 0]
     nboa = [0, 0, 0, 0, 0]
@@ -116,13 +117,13 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size):
     sars_list = np.zeros((len(sa_list)-1, 18))
 
     for i in range(len(sa_list)-1):
-        sars_list[i, :] = sa_list[i][0] + [sa_list[i][1]] + [0] + sa_list[i+1][0]
+        sars_list[i, :] = sa_list[i][0] + [sa_list[i][1]] + [med_reward] + sa_list[i+1][0]
 
-    sars_list[-1, 9] = 1
+    sars_list[-1, 9] = final_reward
 
-    return sars_list
+    return (sars_list, sars_list[-1, 0:8])
 
-def do_qlearn(sars, qshape, alpha, num_iter, rand_count):
+def do_qlearn(sars, qshape, alpha, num_iter, rand_count, gamma):
     Q = np.zeros((qshape[0], qshape[2], 3,3,3,3,3, 13))
 
     for t in range(num_iter):
@@ -149,6 +150,136 @@ def do_qlearn(sars, qshape, alpha, num_iter, rand_count):
 
             cur = Q[x,y,uc,dc,wc,hc,us,act]
 
-            Q[x,y,uc,dc,wc,hc,us,act] = cur + alpha*(R + np.max(Q[nx,ny,nuc,ndc,nwc,nhc,nus,:]) - cur)
+            Q[x,y,uc,dc,wc,hc,us,act] = cur + alpha*(R + gamma*np.max(Q[nx,ny,nuc,ndc,nwc,nhc,nus,:]) - cur)
 
     return Q
+
+def get_paths_tree(sars_list):
+    point_sets = {}
+
+    for i in range(sars_list.shape[0]):
+        S = sars_list[i]
+        idx = tuple(S[3:8])
+        if idx not in point_sets:
+            point_sets[idx] = S[[0,2]].reshape((1,2))
+        else:
+            point_sets[idx] = np.concatenate((point_sets[idx], S[[0,2]].reshape((1,2))), axis=0)
+        print(S[1])
+
+    pprint(point_sets)
+
+    for k in point_sets:
+        point_sets[k] = scipy.spatial.KDTree(point_sets[k])
+
+
+    pprint(point_sets)
+    return point_sets
+
+def do_explore_qlearn(sars, final_states, dplot, point_sets, rl_actions,
+        num_iter=2000, rand_count=500, reset_episode=100, alpha=0.9, gamma=0.99, epsilon=0.8, sigma=0.1):
+    # Setup initial Q table
+    Q = np.zeros((dplot.shape[0], dplot.shape[2], 3,3,2,2,2, 13))
+    umap = np.zeros((dplot.shape[0], dplot.shape[2]))
+    pprint(sars)
+
+    # Declare variables for current state and next state
+    s = np.array([91, 15, 74, 0, 0, 0, 0, 0])
+    ns = np.array([91, 15, 74, 0, 0, 0, 0, 0])
+
+    # for each iteration
+    for t in range(num_iter):
+
+        # Reset state after numbre of iterations
+        if t % reset_episode == 0:
+            print('-----', t)
+            s = np.array([randint(dplot.shape[0]), 15, randint(dplot.shape[2]), 0, 0, 0, 0, 0])
+
+        act = -1
+        is_greed = rand(1) < epsilon
+        if is_greed:
+            act = np.argmax(Q[s[0], s[2], s[3], s[4], s[5], s[6], s[7], :])
+            val = np.max(Q[s[0], s[2], s[3], s[4], s[5], s[6], s[7], :])
+            if val <= 0.00000000001:
+                is_greed = False
+
+        if not is_greed:
+            if rand(1) < 0.9999:
+                act = randint(0, 7)
+            else:
+                act = randint(7, len(rl_actions))
+
+        ns = np.copy(s)
+        if rl_actions[act] is 'Nothing':
+            None
+        elif rl_actions[act] == 'Move_North':
+            ns[2] = min(ns[2]+1, Q.shape[1]-1)
+        elif rl_actions[act] == 'Move_South':
+            ns[2] = max(ns[2]-1, 0)
+        elif rl_actions[act] == 'Move_East':
+            ns[0] = min(ns[0]+1, Q.shape[0]-1)
+        elif rl_actions[act] == 'Move_West':
+            ns[0] = max(ns[0]-1, 0)
+        elif rl_actions[act] == 'Move_Up':
+            act = 0
+        elif rl_actions[act] == 'Move_Down':
+            act = 0
+        else:
+            if (ns[3:8] == np.array([0,0,0,0,0])).all():
+                ns[3:8] = np.array([1,0,0,0,0])
+                act = 7
+            elif (ns[3:8] == np.array([1,0,0,0,0])).all():
+                ns[3:8] = np.array([1,0,1,0,0])
+                act = 9
+            elif (ns[3:8] == np.array([1,0,1,0,0])).all():
+                ns[3:8] = np.array([1,1,1,0,0])
+                act = 8
+            elif (ns[3:8] == np.array([1,1,1,0,0])).all():
+                ns[3:8] = np.array([1,1,1,1,0])
+                act = 10
+            elif (ns[3:8] == np.array([1,1,1,1,0])).all():
+                ns[3:8] = np.array([2,1,1,1,0])
+                act = 7
+            elif (ns[3:8] == np.array([2,1,1,1,0])).all():
+                ns[3:8] = np.array([2,1,1,1,1])
+                act = 11
+            elif (ns[3:8] == np.array([2,1,1,1,1])).all():
+                ns[3:8] = np.array([2,2,1,1,1])
+                act = 8
+            elif (ns[3:8] == np.array([2,2,1,1,1])).all():
+                ns[3:8] = np.array([2,2,1,1,1])
+                act = 0
+        """
+        elif rl_actions[act] == 'Do_PickupCup':
+            ns[2] = min(ns[2]+1, Q.shape[2]-1)
+        elif rl_actions[act] == 'Do_PutdownCup':
+            ns[3] = min(ns[3]+1, Q.shape[3]-1)
+        elif rl_actions[act] == 'Do_WashCup':
+            ns[4] = min(ns[4]+1, Q.shape[4]-1)
+        elif rl_actions[act] == 'Do_MakeHotChocolate':
+            ns[5] = min(ns[5]+1, Q.shape[5]-1)
+        elif rl_actions[act] == 'Do_PickupStraw':
+            ns[6] = min(ns[6]+1, Q.shape[6]-1)
+        """
+
+        dist = point_sets[tuple(ns[3:8])].query(ns[[0,2]])[0]
+        reward = -np.max(dplot[ns[0],3:7,ns[2]])/sigma#np.exp(-dist/sigma)
+        newstate = np.concatenate((s, np.array([act]), np.array([reward]), ns))
+        sars = np.concatenate((sars, newstate.reshape((1,newstate.shape[0]))), 0)
+        s = np.copy(ns)
+
+        idx = choice(sars.shape[0], rand_count, replace=False)
+        S = sars[idx,:]
+        for i in range(len(S)):
+            (x,y,uc,dc,wc,hc,us) = (S[i,0], S[i,2], S[i,3], S[i,4], S[i,5], S[i,6], S[i,7])
+            act = S[i, 8]
+            R = S[i, 9]
+            (nx,ny,nuc,ndc,nwc,nhc,nus) = (S[i,10], S[i,12], S[i,13], S[i,14], S[i,15], S[i,16], S[i,17])
+
+            cur = Q[x,y,uc,dc,wc,hc,us,act]
+
+            Q[x,y,uc,dc,wc,hc,us,act] = cur + alpha*(R + gamma*np.max(Q[nx,ny,nuc,ndc,nwc,nhc,nus,:]) - cur)
+            umap[x,y] = umap[x,y]+1 #np.max(dplot[x,4:6,y])
+
+
+    return (Q, umap)
+
