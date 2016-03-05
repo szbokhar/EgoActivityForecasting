@@ -12,7 +12,7 @@ def show_value(Q):
     vmin = None#np.min(Q)
     vmax = None#np.max(Q)
     print('min', vmin, 'max', vmax)
-    cmap_name = 'jet'
+    cmap_name = 'inferno'
 
     a = fig.add_subplot(3,3,1)
     plt.imshow(np.max(Q[:,:,0,0,0,0,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)

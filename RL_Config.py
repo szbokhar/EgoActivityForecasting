@@ -20,8 +20,10 @@ class RL_Config:
         self.rl_actions = None
         self.paths = None
         self.voxel_grid = None
-        self.total_SARS_list = None
+        self.total_SARSA_list = None
         self.path_NN = None
+        self.paths_to_SARSA = None
+        self.make_path_NN = None
         self.set_parameters()
 
 
@@ -51,17 +53,16 @@ class RL_Config:
                 self.blocksize, paths=self.paths, alpha=self.smooth[0], beta=self.smooth[1])
 
     def generate_sars_data(self):
+        self.total_SARSA_list = None
+        self.paths_to_SARSA(self)
+
         for i in range(len(self.paths)):
-            tmp, final = util.path_data_to_SARS(self.paths[i], self.seq_actions, self.rl_actions,
-                    self.blocksize, self.final_reward, self.path_reward)
-            self.paths[i].SARS_list = tmp
-
-            if self.total_SARS_list is None:
-                self.total_SARS_list = np.copy(tmp)
+            if self.total_SARSA_list is None:
+                self.total_SARSA_list = np.copy(self.paths[i].SARSA_list)
             else:
-                self.total_SARS_list = np.concatenate((self.total_SARS_list, tmp), axis=0)
+                self.total_SARSA_list = np.concatenate((self.total_SARSA_list, tmp), axis=0)
 
-        self.path_NN = util.get_paths_tree(self.total_SARS_list)
+        self.path_NN = self.make_path_NN(self)
 
 
     def set_parameters(self, alpha=DEF_ALPHA, gamma=DEF_GAMMA, epsilon=DEF_EPSILON,
@@ -84,4 +85,4 @@ class Path:
         self.block_points = points
         self.imagenames = images
         self.seq_labels = labels
-        self.SARS_list = None
+        self.SARSA_list = None

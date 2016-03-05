@@ -6,8 +6,10 @@ import matplotlib.image as mpimg
 
 import util
 import load_data
+import sarsa_util
 import display
 from RL_Config import *
+
 
 @argh.arg('points_file', help='File containing point cloud data as list of points')
 @argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
@@ -97,9 +99,11 @@ def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **ext
     rl_config.load_action_files(label_names, rl_actions)
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
+    rl_config.paths_to_SARSA = sarsa_util.full_bagofactions
+    rl_config.make_path_NN = sarsa_util.full_path_NN
     rl_config.generate_sars_data()
 
-    Q = util.do_qlearn(rl_config.total_SARS_list, rl_config.voxel_grid.shape, rl_config.alpha, num_iter, memory_size, rl_config.gamma)
+    Q = util.do_qlearn(rl_config, num_iter, memory_size)
     display.show_value(Q)
 
     plt.show()
@@ -136,6 +140,8 @@ def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **e
     rl_config.load_action_files(label_names, rl_actions)
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
+    rl_config.paths_to_SARSA = sarsa_util.full_bagofactions
+    rl_config.make_path_NN = sarsa_util.full_path_NN
     rl_config.generate_sars_data()
 
     (Q, umap) = util.do_explore_qlearn(rl_config, num_iter=num_iter,
