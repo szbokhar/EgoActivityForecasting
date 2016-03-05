@@ -7,6 +7,28 @@ import matplotlib.image as mpimg
 import util
 import load_data
 import display
+from RL_Config import *
+
+@argh.arg('points_file', help='File containing point cloud data as list of points')
+@argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
+@argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
+@argh.arg('label_names', help='Action sequence label names file')
+@argh.arg('rl_actions', help='RL actions file')
+@argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
+@argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
+@argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
+def plot_path_rewards(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
+    "Run basic q-learning algorithm"
+    rl_config = RL_Config()
+    rl_config.set_parameters(blocksize=extra['blocksize'], final_reward=extra['rewards'][0], path_reward=extra['rewards'][1])
+    rl_config.load_pointcloud(points_file)
+    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_path_data(path_pat, data_ids)
+    rl_config.format_grid_and_paths()
+
+    display.plot_path_reward(rl_config.path_NN, rl_config.voxel_grid, extra['sigma'])
+
+    plt.show()
 
 @argh.arg('points_file', help='File containing point cloud data as list of points')
 @argh.arg('-b', '--blocksize', default=0.5, help='Side length of grid cube')
@@ -14,33 +36,34 @@ import display
 @argh.arg('-m', '--max_div', default=8, help='Divide max by this')
 def show_denseplot(points_file, **extra):
     "Generate and show pointclound density plot"
-    pts, colors = load_data.get_points_and_colors(points_file)
 
-    block_size = extra['blocksize']
+    rl_config = RL_Config()
+    rl_config.set_parameters(blocksize=extra['blocksize'])
+    rl_config.load_pointcloud(points_file)
+    rl_config.format_grid_and_paths()
 
-    dplot = util.make_voxel_grid(pts, colors, block_size)
-    display.show_grid(dplot, extra['start'], extra['max_div'])
+    display.show_grid(rl_config.voxel_grid, extra['start'], extra['max_div'])
 
     plt.show()
 
 @argh.arg('points_file', help='File containing point cloud data as list of points')
-@argh.arg('path_file', help='File containing point path data')
+@argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
+@argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
 @argh.arg('-c', '--count', default=4000, help='Number of points to plot')
 @argh.arg('-b', '--blocksize', default=0.5, help='Side length of grid cube')
-def show_points_and_path(points_file, path_file, **extra):
+def show_points_and_path(points_file, path_pat, data_ids, **extra):
     """
         Loads points and path data files and plots them
     """
-    pts, colors = load_data.get_points_and_colors(points_file)
 
-    block_size = extra['blocksize']
     count = extra['count']
+    rl_config = RL_Config()
+    rl_config.set_parameters(blocksize=extra['blocksize'])
+    rl_config.load_pointcloud(points_file)
+    rl_config.load_path_data(path_pat, data_ids)
+    rl_config.format_grid_and_paths()
 
-    imagenames, path = load_data.get_imagenames_and_path(path_file)
-
-    path = util.smooth_path(path, 0.5, 0.25)
-    bpath = util.block_path(path, block_size)
-    display.make_basic_plot(pts, colors, [path, bpath*block_size], ['b-', 'r-'], count)
+    display.make_basic_plot(rl_config, 0, ['b-', 'r-', 'g-'], count)
 
     plt.show()
 
@@ -52,53 +75,31 @@ def show_points_and_path(points_file, path_file, **extra):
 @argh.arg('rl_actions', help='RL actions file')
 @argh.arg('-a', '--alpha', help='Learning rate', default=0.5)
 @argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
-@argh.arg('-b', '--block_size', help='Grid block size', default=0.5)
+@argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
 @argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
 @argh.arg('-m', '--memory_size', help='Iteration sample size', default=200)
 @argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
 def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
     "Run basic q-learning algorithm"
-    fn_points = points_file
-    fn_path = path_pat
-
-    pts, colors = load_data.get_points_and_colors(fn_points)
-    label_dict = load_data.get_labeldict(label_names)
-    rl_dict = load_data.get_labeldict(rl_actions)
-
-    print(extra)
-
-    block_size = extra['block_size']
-    alpha = extra['alpha']
-    gamma = extra['gamma']
     num_iter = extra['iter']
-    rewards = extra['rewards']
     memory_size = extra['memory_size']
     training_paths = []
     training_labels = []
 
-    for i in range(len(data_ids)):
-        pathfile = fn_path.format(data_ids[i], 'path')
-        labelsfile =  fn_path.format(data_ids[i], 'labels')
-        print(pathfile, labelsfile)
-        imagenames, path = load_data.get_imagenames_and_path(pathfile)
-        raw_labels = load_data.get_pathlabels(labelsfile)
-        training_paths.append(path)
-        training_labels.append(raw_labels)
+    rl_config = RL_Config()
+    rl_config.set_parameters(
+            alpha=extra['alpha'],
+            gamma=extra['gamma'],
+            blocksize=extra['blocksize'],
+            final_reward=extra['rewards'][0],
+            path_reward=extra['rewards'][1])
+    rl_config.load_pointcloud(points_file)
+    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_path_data(path_pat, data_ids)
+    rl_config.format_grid_and_paths()
+    rl_config.generate_sars_data()
 
-    dplot = util.make_voxel_grid(pts, colors, block_size, paths=training_paths)
-
-    sars_list = None
-    for i in range(len(training_paths)):
-        selpath = training_paths[i]
-        sellabels = training_labels[i]
-        tmp, _ = util.path_data_to_SARS(selpath, sellabels, label_dict, rl_dict, block_size, rewards[0], rewards[1])
-        if sars_list is None:
-            sars_list = tmp
-        else:
-            sars_list = np.concatenate((sars_list, tmp), axis=0)
-
-
-    Q = util.do_qlearn(sars_list, dplot.shape, alpha, num_iter, memory_size, gamma)
+    Q = util.do_qlearn(rl_config.total_SARS_list, rl_config.voxel_grid.shape, rl_config.alpha, num_iter, memory_size, rl_config.gamma)
     display.show_value(Q)
 
     plt.show()
@@ -110,7 +111,7 @@ def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **ext
 @argh.arg('rl_actions', help='RL actions file')
 @argh.arg('-a', '--alpha', help='Learning rate', default=0.5)
 @argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
-@argh.arg('-b', '--block_size', help='Grid block size', default=0.5)
+@argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
 @argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
 @argh.arg('-m', '--memory_size', help='Iteration sample size', default=200)
 @argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
@@ -119,56 +120,26 @@ def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **ext
 @argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
 def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
     "Run basic q-learning algorithm"
-    fn_points = points_file
-    fn_path = path_pat
-
-    pts, colors = load_data.get_points_and_colors(fn_points)
-    label_dict = load_data.get_labeldict(label_names)
-    rl_dict = load_data.get_labeldict(rl_actions)
-
-    block_size = extra['block_size']
-    alpha = extra['alpha']
-    gamma = extra['gamma']
-    sigma = extra['sigma']
     num_iter = extra['iter']
     memory_size = extra['memory_size']
-    rewards = extra['rewards']
-    training_paths = []
-    training_labels = []
 
-    for i in range(len(data_ids)):
-        pathfile = fn_path.format(data_ids[i], 'path')
-        labelsfile =  fn_path.format(data_ids[i], 'labels')
-        print(pathfile, labelsfile)
-        imagenames, path = load_data.get_imagenames_and_path(pathfile)
-        raw_labels = load_data.get_pathlabels(labelsfile)
-        training_paths.append(path)
-        training_labels.append(raw_labels)
+    rl_config = RL_Config()
+    rl_config.set_parameters(
+            alpha=extra['alpha'],
+            gamma=extra['gamma'],
+            sigma=extra['sigma'],
+            epsilon=extra['epsilon'],
+            blocksize=extra['blocksize'],
+            final_reward=extra['rewards'][0],
+            path_reward=extra['rewards'][1])
+    rl_config.load_pointcloud(points_file)
+    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_path_data(path_pat, data_ids)
+    rl_config.format_grid_and_paths()
+    rl_config.generate_sars_data()
 
-    dplot = util.make_voxel_grid(pts, colors, block_size, paths=training_paths)
-
-    sars_list = None
-    final_states = None
-    for i in range(len(training_paths)):
-        selpath = training_paths[i]
-        sellabels = training_labels[i]
-        tmp, final = util.path_data_to_SARS(selpath, sellabels, label_dict, rl_dict,
-                block_size, rewards[0], rewards[1])
-        if final_states is None:
-            final_states = final.reshape((1, final.shape[0]))
-        else:
-            final_states = np.concatenate((final_states, final.reshape((1,final.shape[0]))),0)
-
-        if sars_list is None:
-            sars_list = tmp
-        else:
-            sars_list = np.concatenate((sars_list, tmp), axis=0)
-
-    point_sets = util.get_paths_tree(sars_list)
-
-    (Q, umap) = util.do_explore_qlearn(sars_list, final_states, dplot, point_sets, rl_dict,
-            alpha=alpha, num_iter=num_iter, rand_count=memory_size,
-            reset_episode=extra['elength'], epsilon=extra['epsilon'], gamma=gamma, sigma=sigma)
+    (Q, umap) = util.do_explore_qlearn(rl_config, num_iter=num_iter,
+            rand_count=memory_size, reset_episode=extra['elength'])
     display.show_value(Q)
     display.show_action_value(Q, 4, [0,0,0,0,0])
     display.show_action_value(Q, 5, [1,0,0,0,0])
@@ -178,7 +149,7 @@ def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **e
     display.show_action_value(Q, 9, [2,1,1,1,0])
     display.show_action_value(Q, 10, [2,1,1,1,1])
     display.show_action_value(Q, 11, [2,2,1,1,1])
-    display.plot_path_reward(point_sets, dplot, sigma=sigma)
+    display.plot_path_reward(rl_config.path_NN, rl_config.voxel_grid, sigma=rl_config.sigma)
 
     fig = plt.figure(3)
     a = fig.add_subplot(1,1,1)
@@ -187,56 +158,6 @@ def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **e
 
     plt.show()
 
-@argh.arg('points_file', help='File containing point cloud data as list of points')
-@argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
-@argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
-@argh.arg('label_names', help='Action sequence label names file')
-@argh.arg('rl_actions', help='RL actions file')
-@argh.arg('-b', '--block_size', help='Grid block size', default=0.5)
-@argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
-@argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
-def plot_path_rewards(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
-    "Run basic q-learning algorithm"
-    fn_points = points_file
-    fn_path = path_pat
-
-    pts, colors = load_data.get_points_and_colors(fn_points)
-    label_dict = load_data.get_labeldict(label_names)
-    rl_dict = load_data.get_labeldict(rl_actions)
-
-    block_size = extra['block_size']
-    rewards = extra['rewards']
-    training_paths = []
-    training_labels = []
-
-    for i in range(len(data_ids)):
-        pathfile = fn_path.format(data_ids[i], 'path')
-        labelsfile =  fn_path.format(data_ids[i], 'labels')
-        print(pathfile)
-        imagenames, path = load_data.get_imagenames_and_path(pathfile)
-        raw_labels = load_data.get_pathlabels(labelsfile)
-        training_paths.append(path)
-        training_labels.append(raw_labels)
-
-    dplot = util.make_voxel_grid(pts, colors, block_size, paths=training_paths)
-
-    sars_list = None
-    for i in range(len(training_paths)):
-        selpath = training_paths[i]
-        sellabels = training_labels[i]
-        tmp, final = util.path_data_to_SARS(selpath, sellabels, label_dict, rl_dict,
-                block_size, rewards[0], rewards[1])
-
-        if sars_list is None:
-            sars_list = tmp
-        else:
-            sars_list = np.concatenate((sars_list, tmp), axis=0)
-
-    point_sets = util.get_paths_tree(sars_list)
-
-    display.plot_path_reward(point_sets, dplot, extra['sigma'])
-
-    plt.show()
 
 if __name__ == "__main__":
     np.set_printoptions(threshold=np.nan, linewidth=120)

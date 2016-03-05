@@ -4,6 +4,8 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from numpy.random import choice
 
+from RL_Config import *
+
 def show_value(Q):
     fig = plt.figure(1)
 
@@ -82,13 +84,17 @@ def show_grid(grid, start, maxdiv):
 
 
 
-def make_basic_plot(pts, colors, paths, path_colors, num):
+def make_basic_plot(rl_config, pid, path_colors, num):
+    pts = rl_config.pc_points
+    colors = rl_config.pc_colors
+    paths = [rl_config.paths[pid].block_points*rl_config.blocksize, rl_config.paths[pid].smooth_points, rl_config.paths[pid].raw_points]
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
 
     ax.scatter(pts[0:num, 0], pts[0:num, 1], pts[0:num, 2], s=3, c=colors[0:num], edgecolors='none', zdir='y')
 
     for (p,c) in zip(paths, path_colors):
+        print(p)
         ax.plot([l[0] for l in p], [l[1] for l in p], [l[2] for l in p], c, zdir='y')
 
     axes = plt.gca()

@@ -6,6 +6,7 @@ from matplotlib import animation
 from pprint import pprint
 from numpy.random import choice, rand, randint
 
+from RL_Config import *
 
 def center_points(pts):
     dx = np.sum(pts, 0)/pts.shape[0]
@@ -31,7 +32,7 @@ def block_path(path, block_size):
 
     return bpath
 
-def make_voxel_grid(pts, colors, block_size, paths=None):
+def make_voxel_grid(pts, colors, block_size, paths=None, alpha=0.2, beta=0.1):
     grid_coords = np.round(pts/block_size, 0).astype(int)
 
     mx = np.min(grid_coords[:,0], 0)
@@ -43,10 +44,12 @@ def make_voxel_grid(pts, colors, block_size, paths=None):
 
     if paths is not None:
         for i in range(len(paths)):
-            paths[i] = block_path(smooth_path(paths[i], 0.2, 0.1), block_size)
-            paths[i][:,0] = paths[i][:,0] - mx
-            paths[i][:,1] = paths[i][:,1] - mz
-            paths[i][:,2] = paths[i][:,2] - my
+            paths[i].smooth_points = smooth_path(paths[i].points, alpha, beta)
+            paths[i].block_points = block_path(paths[i].smooth_points, block_size)
+            paths[i].points = np.copy(paths[i].block_points)
+            paths[i].points[:,0] = paths[i].points[:,0] - mx
+            paths[i].points[:,1] = paths[i].points[:,1] - mz
+            paths[i].points[:,2] = paths[i].points[:,2] - my
 
     mx = np.max(grid_coords[:,0], 0)
     mz = np.max(grid_coords[:,1], 0)
@@ -60,7 +63,7 @@ def make_voxel_grid(pts, colors, block_size, paths=None):
     return grid
 
 
-def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size, final_reward=1, med_reward=0):
+def path_data_to_SARS(path, lnames, rl_actions, block_size, final_reward=1, med_reward=0):
     def get_direction(dx):
         x = dx[0]
         z = dx[1]
@@ -87,10 +90,10 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size, final_re
     boa = [0, 0, 0, 0, 0]
     nboa = [0, 0, 0, 0, 0]
 
-    for i in range(len(path)-1):
-        pos = path[i,:]
-        npos = path[i+1,:]
-        lbl_num = raw_labels[i]
+    for i in range(len(path.points)-1):
+        pos = path.points[i,:]
+        npos = path.points[i+1,:]
+        lbl_num = path.seq_labels[i]
         lbl = lnames[lbl_num]
 
         act = -1
@@ -100,7 +103,7 @@ def path_data_to_SARS(path, raw_labels, lnames, rl_actions, block_size, final_re
         elif lbl == 'Walking':
             act = get_direction(npos - pos)
         elif lbl_num >= 3:
-            nlbl_num = raw_labels[i+1]
+            nlbl_num = path.seq_labels[i+1]
             if nlbl_num != lbl_num:
                 act = ka2rl[lbl_num]
                 nboa[rl2id(act)] += 1
@@ -175,8 +178,17 @@ def get_paths_tree(sars_list):
     pprint(point_sets)
     return point_sets
 
-def do_explore_qlearn(sars, final_states, dplot, point_sets, rl_actions,
-        num_iter=2000, rand_count=500, reset_episode=100, alpha=0.9, gamma=0.99, epsilon=0.8, sigma=0.1):
+def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100):
+    sars = rl_config.total_SARS_list
+    dplot = rl_config.voxel_grid
+    point_sets = rl_config.path_NN
+    rl_actions = rl_config.rl_actions
+    alpha = rl_config.alpha
+    gamma = rl_config.gamma
+    epsilon = rl_config.epsilon
+    sigma = rl_config.sigma
+
+
     # Setup initial Q table
     Q = np.zeros((dplot.shape[0], dplot.shape[2], 3,3,2,2,2, 13))
     umap = np.zeros((dplot.shape[0], dplot.shape[2]))
@@ -262,7 +274,7 @@ def do_explore_qlearn(sars, final_states, dplot, point_sets, rl_actions,
         """
 
         dist = point_sets[tuple(ns[3:8])].query(ns[[0,2]])[0]
-        reward = -np.max(dplot[ns[0],3:7,ns[2]])/sigma#np.exp(-dist/sigma)
+        reward = -np.exp(-dist/sigma)
         newstate = np.concatenate((s, np.array([act]), np.array([reward]), ns))
         sars = np.concatenate((sars, newstate.reshape((1,newstate.shape[0]))), 0)
         s = np.copy(ns)
