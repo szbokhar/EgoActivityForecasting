@@ -18,18 +18,21 @@ class RL_Config:
         self.pc_colors = None
         self.seq_actions = None
         self.rl_actions = None
+        self.rl_state_ids = None
         self.paths = None
         self.voxel_grid = None
         self.total_SARSA_list = None
         self.path_NN = None
         self.paths_to_SARSA = None
         self.make_path_NN = None
+        self.q_shape = None
         self.set_parameters()
 
 
-    def load_action_files(self, fn_sequence_actions, fn_rl_actions):
-        self.seq_actions = load_data.get_labeldict(fn_sequence_actions)
-        self.rl_actions = load_data.get_labeldict(fn_rl_actions)
+    def load_action_files(self, config_dir):
+        self.seq_actions = load_data.get_labeldict(config_dir+'/sequence_actions.txt')
+        self.rl_actions = load_data.get_labeldict(config_dir+'/rl_actions.txt')
+        self.rl_state_ids = load_data.get_labeldict(config_dir+'/rl_state_ids.txt')
 
     def load_pointcloud(self, fn_pointcloud):
         pts, colors = load_data.get_points_and_colors(fn_pointcloud)
@@ -61,6 +64,8 @@ class RL_Config:
                 self.total_SARSA_list = np.copy(self.paths[i].SARSA_list)
             else:
                 self.total_SARSA_list = np.concatenate((self.total_SARSA_list, tmp), axis=0)
+
+        print(self.total_SARSA_list)
 
         self.path_NN = self.make_path_NN(self)
 

@@ -14,17 +14,16 @@ from RL_Config import *
 @argh.arg('points_file', help='File containing point cloud data as list of points')
 @argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
 @argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
-@argh.arg('label_names', help='Action sequence label names file')
-@argh.arg('rl_actions', help='RL actions file')
+@argh.arg('config_dir', help='Config directory')
 @argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
 @argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
 @argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
-def plot_path_rewards(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
+def plot_path_rewards(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
     rl_config = RL_Config()
     rl_config.set_parameters(blocksize=extra['blocksize'], final_reward=extra['rewards'][0], path_reward=extra['rewards'][1])
     rl_config.load_pointcloud(points_file)
-    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_action_files(config_dir)
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
 
@@ -73,15 +72,15 @@ def show_points_and_path(points_file, path_pat, data_ids, **extra):
 @argh.arg('points_file', help='File containing point cloud data as list of points')
 @argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
 @argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
-@argh.arg('label_names', help='Action sequence label names file')
-@argh.arg('rl_actions', help='RL actions file')
+@argh.arg('config_dir', help='Config directory')
 @argh.arg('-a', '--alpha', help='Learning rate', default=0.5)
 @argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
 @argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
 @argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
 @argh.arg('-m', '--memory_size', help='Iteration sample size', default=200)
 @argh.arg('-r', '--rewards', help='Final and intermediate path rewards', default=[1,0], nargs='+', type=int)
-def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
+@argh.arg('--state_functions', help='Functions specification', default=['full_bagofactions','full_path_NN'], nargs='+', type=str)
+def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
     num_iter = extra['iter']
     memory_size = extra['memory_size']
@@ -96,23 +95,23 @@ def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **ext
             final_reward=extra['rewards'][0],
             path_reward=extra['rewards'][1])
     rl_config.load_pointcloud(points_file)
-    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_action_files(config_dir)
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
-    rl_config.paths_to_SARSA = sarsa_util.full_bagofactions
-    rl_config.make_path_NN = sarsa_util.full_path_NN
+    rl_config.paths_to_SARSA = getattr(sarsa_util, extra['state_functions'][0])
+    rl_config.make_path_NN = getattr(sarsa_util, extra['state_functions'][1])
     rl_config.generate_sars_data()
 
-    Q = util.do_qlearn(rl_config, num_iter, memory_size)
+    Q, vals = util.do_qlearn(rl_config, num_iter, memory_size)
     display.show_value(Q)
+    display.plot_1D(vals)
 
     plt.show()
 
 @argh.arg('points_file', help='File containing point cloud data as list of points')
 @argh.arg('path_pat', help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
 @argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
-@argh.arg('label_names', help='Action sequence label names file')
-@argh.arg('rl_actions', help='RL actions file')
+@argh.arg('config_dir', help='Config directory')
 @argh.arg('-a', '--alpha', help='Learning rate', default=0.5)
 @argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
 @argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
@@ -122,7 +121,7 @@ def basic_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **ext
 @argh.arg('-l', '--elength', help='Episode length ', default=500)
 @argh.arg('-e', '--epsilon', help='epsilon greedy parameter', default=0.9)
 @argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
-def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **extra):
+def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
     num_iter = extra['iter']
     memory_size = extra['memory_size']
@@ -137,7 +136,7 @@ def explore_qlearn(points_file, path_pat, data_ids, label_names, rl_actions, **e
             final_reward=extra['rewards'][0],
             path_reward=extra['rewards'][1])
     rl_config.load_pointcloud(points_file)
-    rl_config.load_action_files(label_names, rl_actions)
+    rl_config.load_action_files(config_dir)
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
     rl_config.paths_to_SARSA = sarsa_util.full_bagofactions

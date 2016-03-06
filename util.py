@@ -68,35 +68,30 @@ def do_qlearn(rl_config, num_iter, rand_count):
     qshape = rl_config.voxel_grid.shape
     alpha = rl_config.alpha
     gamma = rl_config.gamma
-    Q = np.zeros((qshape[0], qshape[2], 3,3,3,3,3, 13))
+    state_size = len(rl_config.rl_state_ids.keys())
+    print(rl_config.total_SARSA_list)
+    Q = np.zeros(rl_config.q_shape)
+
+    vals = []
 
     for t in range(num_iter):
-        print('-----', t)
-        idx = choice(sars.shape[0], rand_count, replace=True)
+        #print('-----', t)
+        idx = choice(sars.shape[0], rand_count, replace=False)
         S = sars[idx,:]
         for i in range(len(S)):
-            x = S[i, 0]
-            y = S[i, 2]
-            uc = S[i, 3]
-            dc = S[i, 4]
-            wc = S[i, 5]
-            hc = S[i, 6]
-            us = S[i, 7]
-            act = S[i, 8]
-            R = S[i, 9]
-            nx = S[i, 10]
-            ny = S[i, 12]
-            nuc = S[i, 13]
-            ndc = S[i, 14]
-            nwc = S[i, 15]
-            nhc = S[i, 16]
-            nus = S[i, 17]
+            s = S[i, 0:state_size].astype(int)
+            act = S[i, state_size]
+            ns = S[i, (state_size+2):(2*state_size+2)].astype(int)
+            st = tuple(s.tolist() + [act])
+            nst = tuple(ns.tolist() + [[x for x in range(Q.shape[-1])]])
+            R = S[i, state_size+1]
 
-            cur = Q[x,y,uc,dc,wc,hc,us,act]
+            Q[st] = Q[st] + alpha*(R + gamma*np.max(Q[nst]) - Q[st])
 
-            Q[x,y,uc,dc,wc,hc,us,act] = cur + alpha*(R + gamma*np.max(Q[nx,ny,nuc,ndc,nwc,nhc,nus,:]) - cur)
+        if t % 10 == 0:
+            vals.append(np.sum(Q))
 
-    return Q
+    return (Q, vals)
 
 def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100):
     sars = rl_config.total_SARSA_list

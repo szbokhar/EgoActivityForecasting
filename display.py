@@ -9,44 +9,29 @@ from RL_Config import *
 def show_value(Q):
     fig = plt.figure(1)
 
+    print(Q.shape)
     vmin = None#np.min(Q)
     vmax = None#np.max(Q)
     print('min', vmin, 'max', vmax)
-    cmap_name = 'inferno'
+    cmap_name = 'jet'
 
-    a = fig.add_subplot(3,3,1)
-    plt.imshow(np.max(Q[:,:,0,0,0,0,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('0,0,0,0,0')
+    a = fig.add_subplot(1,3,1)
+    plt.imshow(np.max(Q[:,:,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    a.set_title('0')
 
-    a = fig.add_subplot(3,3,2)
-    plt.imshow(np.max(Q[:,:,1,0,0,0,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('1,0,0,0,0')
+    a = fig.add_subplot(1,3,2)
+    plt.imshow(np.max(Q[:,:,1,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    a.set_title('1')
 
-    a = fig.add_subplot(3,3,3)
-    plt.imshow(np.max(Q[:,:,1,0,1,0,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('1,0,1,0,0')
-
-    a = fig.add_subplot(3,3,4)
-    plt.imshow(np.max(Q[:,:,1,1,1,0,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('1,1,1,0,0')
-
-    a = fig.add_subplot(3,3,5)
-    plt.imshow(np.max(Q[:,:,1,1,1,1,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('1,1,1,1,0')
-
-    a = fig.add_subplot(3,3,6)
-    plt.imshow(np.max(Q[:,:,2,1,1,1,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('2,1,1,1,0')
-
-    a = fig.add_subplot(3,3,7)
-    plt.imshow(np.max(Q[:,:,2,1,1,1,1,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('2,1,1,1,1')
-
-    a = fig.add_subplot(3,3,8)
-    plt.imshow(np.max(Q[:,:,2,2,1,1,1,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
-    a.set_title('2,2,1,1,1')
+    a = fig.add_subplot(1,3,3)
+    plt.imshow(np.max(Q[:,:,2,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    a.set_title('2')
 
     plt.tight_layout()
+
+def plot_1D(data):
+    fig = plt.figure(2)
+    plt.plot(data, 'r-*')
 
 def show_action_value(Q, plot, s):
     fig = plt.figure(plot)

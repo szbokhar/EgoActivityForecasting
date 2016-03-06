@@ -37,6 +37,7 @@ def get_pathlabels(fn):
     return np.array(full)
 
 def get_labeldict(fn):
+    print("Loading " + fn + " as dictionary")
     tmp = parse_file(fn, [int, lambda x : x])
     ldict = {}
 
