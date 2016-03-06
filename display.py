@@ -31,7 +31,7 @@ def show_value(Q):
 
 def plot_1D(data):
     fig = plt.figure(2)
-    plt.plot(data, 'r-*')
+    plt.plot(data, 'r-')
 
 def show_action_value(Q, plot, s):
     fig = plt.figure(plot)

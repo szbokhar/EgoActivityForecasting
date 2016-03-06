@@ -103,7 +103,7 @@ def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.generate_sars_data()
 
     Q, vals = util.do_qlearn(rl_config, num_iter, memory_size)
-    display.show_value(Q)
+    display.show_value(np.log(Q*1000+1))
     display.plot_1D(vals)
 
     plt.show()
