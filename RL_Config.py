@@ -9,22 +9,27 @@ class RL_Config:
     DEF_EPSILON = 0.6
     DEF_SIGMA = 10
     DEF_BLOCKSIZE = 0.5
-    DEF_FINALREWARD = 100
-    DEF_PATHREWARD = 10
     DEF_SMOOTH = [0.2, 0.1]
 
     def __init__(self):
         self.pc_points = None
         self.pc_colors = None
+
         self.seq_actions = None
         self.rl_actions = None
         self.rl_state_ids = None
+
         self.paths = None
         self.voxel_grid = None
         self.total_SARSA_list = None
         self.path_NN = None
+
         self.paths_to_SARSA = None
         self.make_path_NN = None
+        self.reward_function = None
+        self.get_random_state = None
+        self.explore_step = None
+
         self.q_shape = None
         self.set_parameters()
 
@@ -55,31 +60,22 @@ class RL_Config:
         self.voxel_grid = util.make_voxel_grid(self.pc_points, self.pc_colors,
                 self.blocksize, paths=self.paths, alpha=self.smooth[0], beta=self.smooth[1])
 
-    def generate_sars_data(self):
+    def make_total_SARSA_list(self):
         self.total_SARSA_list = None
-        self.paths_to_SARSA(self)
 
         for i in range(len(self.paths)):
             if self.total_SARSA_list is None:
                 self.total_SARSA_list = np.copy(self.paths[i].SARSA_list)
             else:
-                self.total_SARSA_list = np.concatenate((self.total_SARSA_list, tmp), axis=0)
-
-        print(self.total_SARSA_list)
-
-        self.path_NN = self.make_path_NN(self)
-
+                self.total_SARSA_list = np.concatenate((self.total_SARSA_list, self.paths[i].SARSA_list), axis=0)
 
     def set_parameters(self, alpha=DEF_ALPHA, gamma=DEF_GAMMA, epsilon=DEF_EPSILON,
-            sigma=DEF_SIGMA, blocksize=DEF_BLOCKSIZE, final_reward=DEF_FINALREWARD,
-            path_reward=DEF_PATHREWARD, smooth_params=DEF_SMOOTH):
+            sigma=DEF_SIGMA, blocksize=DEF_BLOCKSIZE, smooth_params=DEF_SMOOTH):
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
         self.sigma = sigma
         self.blocksize = blocksize
-        self.final_reward = final_reward
-        self.path_reward = path_reward
         self.smooth = smooth_params
 
 class Path:

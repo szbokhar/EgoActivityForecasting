@@ -5,8 +5,8 @@
 4 Move_West
 5 Move_Up
 6 Move_Down
-7 Do_PickupCup
-8 Do_PutdownCup
-9 Do_WashCup
-10 Do_MakeHotChocolate
+7 Do_MakeHotChocolate
+8 Do_PickupCup
+9 Do_PutdownCup
+10 Do_WashCup
 11 Do_PickupStraw

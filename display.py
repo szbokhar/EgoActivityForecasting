@@ -6,14 +6,14 @@ from numpy.random import choice
 
 from RL_Config import *
 
-def show_value(Q):
-    fig = plt.figure(1)
+def show_value(Q, p):
+    fig = plt.figure(p)
 
     print(Q.shape)
     vmin = None#np.min(Q)
     vmax = None#np.max(Q)
     print('min', vmin, 'max', vmax)
-    cmap_name = 'jet'
+    cmap_name = 'inferno'
 
     a = fig.add_subplot(1,3,1)
     plt.imshow(np.max(Q[:,:,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
@@ -36,14 +36,18 @@ def plot_1D(data):
 def show_action_value(Q, plot, s):
     fig = plt.figure(plot)
 
-    vmin = None#np.min(Q)
-    vmax = None#np.max(Q)
+    vmin = None#np.min(Q[:,:,s[0],:])
+    vmax = None#np.max(Q[:,:,s[0],:])
     print('min', vmin, 'max', vmax)
     cmap_name = 'jet'
 
-    for i in range(12):
+    SX = Q.shape[0]
+    SY = Q.shape[1]
+    SA = Q.shape[-1]
+    for i in range(SA):
         a = fig.add_subplot(4,3,i+1)
-        plt.imshow(Q[:,:,s[0], s[1], s[2], s[3], s[4],i], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+        idx = [[x for x in range(SX)]] + [[x for x in range(SY)]] + s + [i]
+        plt.imshow(Q[:,:,s[0],i], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
         a.set_title(str(i))
 
     plt.tight_layout()
@@ -51,21 +55,27 @@ def show_action_value(Q, plot, s):
 
 
 def show_grid(grid, start, maxdiv):
-    fig = plt.figure(2)
+    fig = plt.figure(3)
 
-    vmin = np.min(grid)
-    vmax = np.max(grid)/maxdiv
+    vmin = None#np.min(grid)
+    vmax = None#np.max(grid)/maxdiv
     cmap_name = 'inferno'
 
     print(grid.shape, vmin, vmax)
 
     for i in range(grid.shape[1]):
-        print(i, np.sum(grid[:,i,:]))
+        print(i, np.max(grid[:,i,:]))
 
     for i in range(9):
-        a = fig.add_subplot(3,3,i+1)
+        a = fig.add_subplot(2,5,i+1)
         plt.imshow(grid[:,start+i,:], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
         a.set_title(str(start+i))
+
+    fig = plt.figure(30)
+    a = fig.add_subplot(1,1,1)
+    tmp = 10*np.max(grid[:,6:12,:], axis=1)/1081
+    plt.imshow(tmp, cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    a.set_title('cost')
 
 
 
@@ -92,13 +102,14 @@ def plot_path_reward(point_sets, dplot, sigma=0.1):
     w = dplot.shape[0]
     h = dplot.shape[2]
 
-    fig = plt.figure(2)
+    fig = plt.figure(4)
 
     i=0
+    print(point_sets)
     for k in point_sets:
+        print(k)
         mymap = np.zeros((len(point_sets), w, h))
         for x in range(w):
-            print('roe', x)
             for y in range(h):
                 rew = point_sets[k].query(np.array([x,y]))
                 mymap[i,x,y] = np.exp(-rew[0]/sigma)

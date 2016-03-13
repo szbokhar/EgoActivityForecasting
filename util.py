@@ -76,7 +76,7 @@ def do_qlearn(rl_config, num_iter, rand_count):
 
     for t in range(num_iter):
         #print('-----', t)
-        idx = choice(sars.shape[0], rand_count, replace=False)
+        idx = choice(sars.shape[0], rand_count, replace=True)
         S = sars[idx,:]
         for i in range(len(S)):
             s = S[i, 0:state_size].astype(int)
@@ -93,6 +93,67 @@ def do_qlearn(rl_config, num_iter, rand_count):
 
     return (Q, vals)
 
+def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100):
+    sars = rl_config.total_SARSA_list
+    qshape = rl_config.voxel_grid.shape
+
+    alpha = rl_config.alpha
+    gamma = rl_config.gamma
+    epsilon = rl_config.epsilon
+    sigma = rl_config.sigma
+
+    state_size = len(rl_config.rl_state_ids.keys())
+    rid2rl_actions = rl_config.rl_actions
+    rl_actions2rid = {v: k for k, v in rid2rl_actions.items()}
+
+    print(rl_config.total_SARSA_list)
+    Q = np.zeros(rl_config.q_shape)
+    umap = np.zeros(rl_config.q_shape)
+
+    vals = []
+
+    e_state = np.zeros(state_size)
+    next_e_state = np.zeros(state_size)
+
+    e_length = 0
+    for t in range(num_iter):
+        if e_length % reset_episode == 0:
+            e_state = rl_config.get_random_state(rl_config)
+            print("Step:", t)
+
+        (next_e_state, new_sarsa_state, isFinished) = rl_config.explore_step(rl_config, Q, e_state, epsilon=epsilon)
+        sars = np.concatenate((sars, new_sarsa_state), axis=0)
+
+        e_state = np.copy(next_e_state)
+        if isFinished:
+            e_length = 0
+        else:
+            e_length += 1
+
+        #print(new_sarsa_state)
+        #print('-----', t)
+        idx = choice(sars.shape[0], rand_count, replace=True)
+        S = sars[idx,:]
+        for i in range(len(S)):
+            s = S[i, 0:state_size].astype(int)
+            act = S[i, state_size]
+            ns = S[i, (state_size+2):(2*state_size+2)].astype(int)
+            st = tuple(s.tolist() + [act])
+            nst = tuple(ns.tolist() + [[x for x in range(Q.shape[-1])]])
+            R = S[i, state_size+1]
+
+            Q[st] = Q[st] + alpha*(R + gamma*np.max(Q[nst]) - Q[st])
+            umap[st] += 1
+
+        if t % 10 == 0:
+            # print(vals[-1] if len(vals) > 1 else None)
+            vals.append(np.sum(Q))
+
+    Q[umap == 0] = -2
+
+    return (Q, vals, umap)
+
+"""
 def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100):
     sars = rl_config.total_SARSA_list
     dplot = rl_config.voxel_grid
@@ -175,7 +236,6 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
             elif (ns[3:8] == np.array([2,2,1,1,1])).all():
                 ns[3:8] = np.array([2,2,1,1,1])
                 act = 0
-        """
         elif rl_actions[act] == 'Do_PickupCup':
             ns[2] = min(ns[2]+1, Q.shape[2]-1)
         elif rl_actions[act] == 'Do_PutdownCup':
@@ -186,7 +246,6 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
             ns[5] = min(ns[5]+1, Q.shape[5]-1)
         elif rl_actions[act] == 'Do_PickupStraw':
             ns[6] = min(ns[6]+1, Q.shape[6]-1)
-        """
 
         dist = point_sets[tuple(ns[3:8])].query(ns[[0,2]])[0]
         reward = -np.exp(-dist/sigma)
@@ -209,4 +268,4 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
 
 
     return (Q, umap)
-
+"""
