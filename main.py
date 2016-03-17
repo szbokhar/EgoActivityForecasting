@@ -3,7 +3,9 @@ import argh
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import scipy.io
 import ipdb
+import os
 
 import util
 import load_data
@@ -136,10 +138,12 @@ def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
         default=['hc_only_make_sarsa_lists','hc_only_NN','hc_only_reward','hc_only_transition'], nargs='+', type=str)
 @argh.arg('--explore_functions', help='Functions specification',
         default=['hc_only_reset','hc_only_explore_step'], nargs='+', type=str)
+@argh.arg('--save', default=None, help='Save configuration and results in directory')
 def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
     num_iter = extra['iter']
     memory_size = extra['memory_size']
+    episode_length = extra['elength']
 
     rl_config = RL_Config()
     rl_config.set_parameters(
@@ -154,16 +158,38 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.transition_function = getattr(sarsa_util, extra['state_functions'][3])
     rl_config.get_random_state = getattr(sarsa_util, extra['explore_functions'][0])
     rl_config.explore_step = getattr(sarsa_util, extra['explore_functions'][1])
-    rl_config.load_pointcloud(points_file)
-    rl_config.load_action_files(config_dir)
-    rl_config.load_path_data(path_pat, data_ids)
+    rl_config.set_loadfiles(
+            fn_points=points_file,
+            fn_config=config_dir,
+            fnp_path=path_pat,
+            data_ids=data_ids)
+
+    savefolder = extra['save']
+    if savefolder is not None:
+        if not os.path.exists(savefolder):
+            os.makedirs(savefolder)
+
+        rl_config.save(savefolder)
+        f = open(savefolder+'summary.txt', 'wb')
+        f.write(bytes(rl_config.get_summary(), 'UTF-8'))
+        f.close()
+
+    rl_config.load_data()
     rl_config.format_grid_and_paths()
     rl_config.paths_to_SARSA(rl_config)
 
     (Q, vals, umap) = util.do_explore_qlearn(rl_config, num_iter=num_iter,
-            rand_count=memory_size, reset_episode=extra['elength'])
+            rand_count=memory_size, reset_episode=episode_length)
+
+    if savefolder is not None:
+        if not os.path.exists(savefolder):
+            os.makedirs(savefolder)
+
+        scipy.io.savemat(savefolder+'Q-results.mat', {'Q':Q, 'vals':vals, 'umap':umap})
+
 
     print('Density max: ', np.max(rl_config.voxel_grid))
+    Q[umap == 0] = -2
     display.show_value(Q, 1)
     #display.show_value(umap, 20)
     display.plot_1D(vals)
@@ -172,10 +198,42 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     display.show_action_value(Q, 5, [0])
     display.show_action_value(Q, 6, [1])
 
+
+    plt.show()
+
+
+@argh.arg('model', help='Folder containing the model files to load')
+@argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
+@argh.arg('-m', '--memory_size', help='Iteration sample size', default=200)
+@argh.arg('-l', '--elength', help='Episode length ', default=500)
+def load_qlearn(model, **extra):
+    num_iter = extra['iter']
+    memory_size = extra['memory_size']
+    episode_length = extra['elength']
+
+    rl_config = RL_Config.load(model)
+    rl_config.load_data()
+    rl_config.format_grid_and_paths()
+    rl_config.paths_to_SARSA(rl_config)
+
+    Qdict = scipy.io.loadmat(model+'Q-results.mat')
+    Q = Qdict['Q']
+    vals = Qdict['vals']
+    umap = Qdict['umap']
+    print(vals.shape)
+
+    print('Density max: ', np.max(rl_config.voxel_grid))
+    Q[umap == 0] = -5
+    display.show_value(Q, 1)
+    display.plot_1D(vals.transpose())
+    display.show_action_value(Q, 5, [0])
+    display.show_action_value(Q, 6, [1])
+
+    display.show_value(umap, 22)
     plt.show()
 
 
 if __name__ == "__main__":
     np.set_printoptions(threshold=np.nan, linewidth=120)
     argh.dispatch_commands([show_points_and_path, basic_qlearn, show_denseplot,
-            explore_qlearn, plot_path_rewards])
+            explore_qlearn, load_qlearn, plot_path_rewards])

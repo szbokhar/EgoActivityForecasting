@@ -149,7 +149,6 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
             # print(vals[-1] if len(vals) > 1 else None)
             vals.append(np.sum(Q))
 
-    Q[umap == 0] = -2
 
     return (Q, vals, umap)
 

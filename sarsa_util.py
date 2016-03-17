@@ -169,7 +169,8 @@ def hc_only_make_sarsa_lists(rl_config):
             action = sa_list[i][1]
             new_state = sa_list[i+1][0]
             if action != rl_actions2rid['Nothing']:
-                sars_list = np.concatenate((sars_list, np.concatenate((sa_list[i][0],[sa_list[i][1]],[0],sa_list[i+1][0])).reshape((1, 2*state_size+2))))
+                sars_list = np.concatenate((sars_list,
+                        np.concatenate((sa_list[i][0],[sa_list[i][1]],[0],sa_list[i+1][0])).reshape((1, 2*state_size+2))))
 
         rl_config.paths[p].SARSA_list = sars_list
 
@@ -268,7 +269,7 @@ def hc_only_reward(rl_config, state, action, new_state):
     reward = 0
     state_size = len(rl_config.rl_state_ids.keys())
     dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
-    reward += -30*(np.max(rl_config.voxel_grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/1081)
+    reward += -300*(np.max(rl_config.voxel_grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/1081)
     #reward += np.exp(-dist/rl_config.sigma)*3
 
 

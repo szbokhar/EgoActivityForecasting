@@ -16,15 +16,15 @@ def show_value(Q, p):
     cmap_name = 'inferno'
 
     a = fig.add_subplot(1,3,1)
-    plt.imshow(np.max(Q[:,:,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    plt.imshow(np.max(Q[:,:,0,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('0')
 
     a = fig.add_subplot(1,3,2)
-    plt.imshow(np.max(Q[:,:,1,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    plt.imshow(np.max(Q[:,:,1,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('1')
 
     a = fig.add_subplot(1,3,3)
-    plt.imshow(np.max(Q[:,:,2,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    plt.imshow(np.max(Q[:,:,2,:], 2), cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('2')
 
     plt.tight_layout()
@@ -47,7 +47,7 @@ def show_action_value(Q, plot, s):
     for i in range(SA):
         a = fig.add_subplot(4,3,i+1)
         idx = [[x for x in range(SX)]] + [[x for x in range(SY)]] + s + [i]
-        plt.imshow(Q[:,:,s[0],i], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+        plt.imshow(Q[:,:,s[0],i], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
         a.set_title(str(i))
 
     plt.tight_layout()
@@ -68,13 +68,13 @@ def show_grid(grid, start, maxdiv):
 
     for i in range(9):
         a = fig.add_subplot(2,5,i+1)
-        plt.imshow(grid[:,start+i,:], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+        plt.imshow(grid[:,start+i,:], cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
         a.set_title(str(start+i))
 
     fig = plt.figure(30)
     a = fig.add_subplot(1,1,1)
     tmp = 10*np.max(grid[:,6:12,:], axis=1)/1081
-    plt.imshow(tmp, cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax)
+    plt.imshow(tmp, cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('cost')
 
 
@@ -118,7 +118,7 @@ def plot_path_reward(point_sets, dplot, sigma=0.1):
         vmin = np.min(mymap[i,:,:])
         vmax = np.max(mymap[i,:,:])
         a = fig.add_subplot(2,4,i+1)
-        plt.imshow(mymap[i,:,:], cmap=plt.get_cmap('jet'), vmin=vmin, vmax=vmax)
+        plt.imshow(mymap[i,:,:], cmap=plt.get_cmap('jet'), vmin=vmin, vmax=vmax, interpolation='nearest')
         a.set_title(str(k))
         i=i+1
 

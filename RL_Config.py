@@ -1,4 +1,5 @@
 import numpy as np
+import pickle as pkl
 
 import util
 import load_data
@@ -12,6 +13,11 @@ class RL_Config:
     DEF_SMOOTH = [0.2, 0.1]
 
     def __init__(self):
+        self.fn_points = None
+        self.fn_config = None
+        self.fnp_path = None
+        self.data_ids = None
+
         self.pc_points = None
         self.pc_colors = None
 
@@ -33,6 +39,33 @@ class RL_Config:
         self.q_shape = None
         self.set_parameters()
 
+    def get_summary(self):
+        summ_text = ""
+        summ_text += "alpha = {0}\t\t\t//Learning rate\n".format(self.alpha)
+        summ_text += "gamma = {0}\t\t\t//Propogation constants\n".format(self.gamma)
+        summ_text += "epsilon = {0}\t\t\t//e-greedy constant\n".format(self.epsilon)
+        summ_text += "sigma = {0}\t\t\t//Path reward spread\n".format(self.sigma)
+        summ_text += "blocksize = {0}\t\t\t//side length of one grid block\n".format(self.blocksize)
+        summ_text += "smooth = {0}\t\t\t//path smoothing alpha and beta values\n".format(self.smooth)
+        return summ_text
+
+    def save(self, fname):
+        pkl.dump(self, open(fname+'config.pkl', 'wb'))
+
+    @staticmethod
+    def load(fname):
+        return pkl.load(open(fname+'config.pkl', 'rb'))
+
+    def set_loadfiles(self, fn_points=None, fn_config=None, fnp_path=None, data_ids=None):
+        self.fn_points = fn_points
+        self.fn_config = fn_config
+        self.fnp_path = fnp_path
+        self.data_ids = data_ids
+
+    def load_data(self):
+        self.load_pointcloud(self.fn_points)
+        self.load_action_files(self.fn_config)
+        self.load_path_data(self.fnp_path, self.data_ids)
 
     def load_action_files(self, config_dir):
         self.seq_actions = load_data.get_labeldict(config_dir+'/sequence_actions.txt')
