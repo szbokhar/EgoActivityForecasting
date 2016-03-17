@@ -1,0 +1,6 @@
+alpha = 0.6			//Learning rate
+gamma = 0.9			//Propogation constants
+epsilon = 0.3			//e-greedy constant
+sigma = 2			//Path reward spread
+blocksize = 1.0			//side length of one grid block
+smooth = [0.2, 0.1]			//path smoothing alpha and beta values
