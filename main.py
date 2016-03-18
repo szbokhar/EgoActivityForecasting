@@ -171,7 +171,11 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
 
         rl_config.save(savefolder)
         f = open(savefolder+'summary.txt', 'wb')
-        f.write(bytes(rl_config.get_summary(), 'UTF-8'))
+        summ = rl_config.get_summary()
+        summ += "num_iter = {0}\t\t\t// number of training iterations\n".format(num_iter)
+        summ += "memory_size = {0}\t\t\t//batch train size\n".format(memory_size)
+        summ += "episode_length = {0}\t\t\t//length of an episode\n".format(episode_length)
+        f.write(bytes(summ, 'UTF-8'))
         f.close()
 
     rl_config.load_data()
@@ -189,6 +193,7 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
 
 
     print('Density max: ', np.max(rl_config.voxel_grid))
+    """
     Q[umap == 0] = -2
     display.show_value(Q, 1)
     #display.show_value(umap, 20)
@@ -200,6 +205,7 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
 
 
     plt.show()
+    """
 
 
 @argh.arg('model', help='Folder containing the model files to load')
