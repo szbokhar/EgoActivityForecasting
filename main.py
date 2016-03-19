@@ -227,7 +227,7 @@ def load_qlearn(model, **extra):
     rl_config.format_grid_and_paths()
     rl_config.paths_to_SARSA(rl_config)
 
-    Qdict = scipy.io.loadmat(model+'Q-results.mat')
+    Qdict = scipy.io.loadmat(os.path.join(model,'Q-results.mat'))
     Q = Qdict['Q']
     vals = Qdict['vals']
     umap = Qdict['umap']
