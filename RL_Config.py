@@ -39,7 +39,9 @@ class RL_Config:
         self.q_shape = None
         self.set_parameters()
 
-        self.act_pos = None
+
+        # Specific attributed
+        self.hc_pos = None
 
     def get_summary(self):
         summ_text = ""
