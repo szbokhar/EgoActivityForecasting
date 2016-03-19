@@ -261,7 +261,6 @@ def hc_only_reward(rl_config, state, action, new_state):
     rl_actions2rid = {v: k for k, v in rid2rl_actions.items()}
     id2rl_state = rl_config.rl_state_ids
     rl2id = {v: k for k, v in id2rl_state.items()}
-    posidx = [rl2id['Pos_X'], rl2id['Pos_Y']]
 
     sarsa = rl_config.total_SARSA_list
     if rl_config.hc_pos is None:

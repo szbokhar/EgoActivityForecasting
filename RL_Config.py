@@ -1,5 +1,6 @@
 import numpy as np
 import pickle as pkl
+import os.path
 
 import util
 import load_data
@@ -39,7 +40,9 @@ class RL_Config:
         self.q_shape = None
         self.set_parameters()
 
-        self.act_pos = None
+
+        # Specific attributed
+        self.hc_pos = None
 
     def get_summary(self):
         summ_text = ""
@@ -52,11 +55,13 @@ class RL_Config:
         return summ_text
 
     def save(self, fname):
-        pkl.dump(self, open(fname+'config.pkl', 'wb'))
+        fullpath = os.path.join(fname,'config.pkl')
+        pkl.dump(self, open(fullpath, 'wb'))
 
     @staticmethod
     def load(fname):
-        return pkl.load(open(fname+'config.pkl', 'rb'))
+        fullpath = os.path.join(fname,'config.pkl')
+        return pkl.load(open(fullpath, 'rb'))
 
     def set_loadfiles(self, fn_points=None, fn_config=None, fnp_path=None, data_ids=None):
         self.fn_points = fn_points

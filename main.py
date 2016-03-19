@@ -128,7 +128,8 @@ def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
 @argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
 @argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
 @argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
-@argh.arg('-m', '--memory_size', help='Iteration sample size', default=200)
+@argh.arg('-m', '--memory_size', help='Total memory size', default=200)
+@argh.arg('-c', '--batch_size', help='Iteration sample size', default=200)
 @argh.arg('-l', '--elength', help='Episode length ', default=500)
 @argh.arg('-e', '--epsilon', help='epsilon greedy parameter', default=0.9)
 @argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
@@ -143,6 +144,7 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
     num_iter = extra['iter']
     memory_size = extra['memory_size']
+    batch_size = extra['batch_size']
     episode_length = extra['elength']
 
     rl_config = RL_Config()
@@ -170,10 +172,12 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
             os.makedirs(savefolder)
 
         rl_config.save(savefolder)
-        f = open(savefolder+'summary.txt', 'wb')
+        summpath = os.path.join(savefolder, 'summary.txt')
+        f = open(summpath, 'wb')
         summ = rl_config.get_summary()
         summ += "num_iter = {0}\t\t\t// number of training iterations\n".format(num_iter)
-        summ += "memory_size = {0}\t\t\t//batch train size\n".format(memory_size)
+        summ += "batch_size = {0}\t\t\t//batch train size\n".format(batch_size)
+        summ += "memory_size = {0}\t\t\t//total memory size\n".format(memory_size)
         summ += "episode_length = {0}\t\t\t//length of an episode\n".format(episode_length)
         f.write(bytes(summ, 'UTF-8'))
         f.close()
@@ -183,13 +187,14 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.paths_to_SARSA(rl_config)
 
     (Q, vals, umap) = util.do_explore_qlearn(rl_config, num_iter=num_iter,
-            rand_count=memory_size, reset_episode=episode_length)
+            rand_count=batch_size, memory=memory_size, reset_episode=episode_length)
 
     if savefolder is not None:
         if not os.path.exists(savefolder):
             os.makedirs(savefolder)
 
-        scipy.io.savemat(savefolder+'Q-results.mat',
+        matpath = os.path.join(savefolder,'Q-results.mat')
+        scipy.io.savemat(matpath,
             {'Q':Q, 'vals':vals, 'umap':umap, 'voxel_grid':rl_config.voxel_grid})
 
 
