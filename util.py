@@ -93,8 +93,8 @@ def do_qlearn(rl_config, num_iter, rand_count):
 
     return (Q, vals)
 
-def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100):
-    sars = rl_config.total_SARSA_list
+def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=100, memory=10000):
+    memcount = len(rl_config.total_SARSA_list)
     qshape = rl_config.voxel_grid.shape
 
     alpha = rl_config.alpha
@@ -109,6 +109,8 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
     print(rl_config.total_SARSA_list)
     Q = np.zeros(rl_config.q_shape)
     umap = np.zeros(rl_config.q_shape)
+    sars = np.zeros((memory, rl_config.total_SARSA_list.shape[1]))
+    sars[0:memcount,:] = np.copy(rl_config.total_SARSA_list)
 
     vals = []
 
@@ -122,7 +124,11 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
             print("Step:", t)
 
         (next_e_state, new_sarsa_state, isFinished) = rl_config.explore_step(rl_config, Q, e_state, epsilon=epsilon)
-        sars = np.concatenate((sars, new_sarsa_state), axis=0)
+        if memcount >= sars.shape[0]:
+            ridx = randint(sars.shape[0])
+            sars[ridx] = new_sarsa_state
+        else:
+            sars[memcount] = new_sarsa_state
 
         e_state = np.copy(next_e_state)
         if isFinished:
@@ -132,7 +138,7 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
 
         #print(new_sarsa_state)
         #print('-----', t)
-        idx = choice(sars.shape[0], rand_count, replace=True)
+        idx = choice(min(sars.shape[0], memcount), rand_count, replace=True)
         S = sars[idx,:]
         for i in range(len(S)):
             s = S[i, 0:state_size].astype(int)
@@ -145,9 +151,11 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
             Q[st] = Q[st] + alpha*(R + gamma*np.max(Q[nst]) - Q[st])
             umap[st] += 1
 
-        if t % 10 == 0:
+        if t % 50 == 0:
             # print(vals[-1] if len(vals) > 1 else None)
             vals.append(np.sum(Q))
+
+        memcount = memcount+1 if memcount < sars.shape[0] else memcount
 
 
     return (Q, vals, umap)
