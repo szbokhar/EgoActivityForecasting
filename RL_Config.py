@@ -39,6 +39,8 @@ class RL_Config:
         self.q_shape = None
         self.set_parameters()
 
+        self.act_pos = None
+
     def get_summary(self):
         summ_text = ""
         summ_text += "alpha = {0}\t\t\t//Learning rate\n".format(self.alpha)
