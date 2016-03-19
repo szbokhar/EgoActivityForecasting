@@ -256,10 +256,20 @@ def hc_only_explore_step(rl_config, Q, state, epsilon=0.9):
     return (next_state, sarsa_state, isFinished)
 
 def hc_only_reward(rl_config, state, action, new_state):
+    state_size = len(rl_config.rl_state_ids.keys())
     rid2rl_actions = rl_config.rl_actions
     rl_actions2rid = {v: k for k, v in rid2rl_actions.items()}
     id2rl_state = rl_config.rl_state_ids
     rl2id = {v: k for k, v in id2rl_state.items()}
+    posidx = [rl2id['Pos_X'], rl2id['Pos_Y']]
+
+    sarsa = rl_config.total_SARSA_list
+    if rl_config.hc_pos is None:
+        for i in range(sarsa.shape[0]):
+            if rid2rl_actions[sarsa[i,state_size]] == "Do_MakeHotChocolate":
+                rl_config.hc_pos = tuple(sarsa[i, [rl2id['Pos_X'],rl2id['Pos_Y']]])
+
+    hcpos = rl_config.hc_pos
 
     idxidx = [rl2id['MakeHotChocolate']]
     posidx = [rl2id['Pos_X'], rl2id['Pos_Y']]
@@ -267,19 +277,16 @@ def hc_only_reward(rl_config, state, action, new_state):
     y = state[rl2id['Pos_Y']]
 
     reward = 0
-    state_size = len(rl_config.rl_state_ids.keys())
     dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
-    reward += -300*(np.max(rl_config.voxel_grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/1081)
-    #reward += np.exp(-dist/rl_config.sigma)*3
-
+    reward += -50*(np.max(rl_config.voxel_grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/1081)
 
     if action == rl_actions2rid['Do_MakeHotChocolate']:
-        adist = np.sqrt(np.square(x-32) + np.square(y-46))
+        adist = np.sqrt(np.square(x-hcpos[0]) + np.square(y-hcpos[1]))  #bs=4
         reward += -adist*100
 
     for p in rl_config.paths:
         if np.all(new_state == p.SARSA_list[-1, (state_size+2):(2*state_size+2)]):
-            reward = 50
+            reward = 100
 
     return reward
 
@@ -309,10 +316,7 @@ def hc_only_transition(rl_config, state, act, Q):
     elif rid2rl_actions[act] == 'Move_Down':
         act = -1
     elif rid2rl_actions[act] == 'Do_MakeHotChocolate':
-        #if np.square(x-16)+np.square(y-23) < 4:
-            next_state[rl_state2id['MakeHotChocolate']] = 1
-        #else:
-        #    act = -1
+        next_state[rl_state2id['MakeHotChocolate']] = 1
     elif rid2rl_actions[act] == 'Finish':
         if state[rl_state2id['MakeHotChocolate']] == 1:
             next_state[rl_state2id['MakeHotChocolate']] = 2
