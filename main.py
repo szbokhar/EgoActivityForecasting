@@ -189,10 +189,10 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
         if not os.path.exists(savefolder):
             os.makedirs(savefolder)
 
-        scipy.io.savemat(savefolder+'Q-results.mat', {'Q':Q, 'vals':vals, 'umap':umap})
+        scipy.io.savemat(savefolder+'Q-results.mat',
+            {'Q':Q, 'vals':vals, 'umap':umap, 'voxel_grid':rl_config.voxel_grid})
 
 
-    print('Density max: ', np.max(rl_config.voxel_grid))
     """
     Q[umap == 0] = -2
     display.show_value(Q, 1)
@@ -226,9 +226,7 @@ def load_qlearn(model, **extra):
     Q = Qdict['Q']
     vals = Qdict['vals']
     umap = Qdict['umap']
-    print(vals.shape)
 
-    print('Density max: ', np.max(rl_config.voxel_grid))
     Q[umap == 0] = -5
     display.show_value(Q, 1)
     display.plot_1D(vals.transpose())
