@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.spatial
+import scipy.ndimage.filters
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 from pprint import pprint
@@ -32,7 +33,7 @@ def block_path(path, block_size):
 
     return bpath
 
-def make_voxel_grid(pts, colors, block_size, paths=None, alpha=0.2, beta=0.1):
+def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta=0.1):
     grid_coords = np.round(pts/block_size, 0).astype(int)
 
     mx = np.min(grid_coords[:,0], 0)
@@ -43,6 +44,7 @@ def make_voxel_grid(pts, colors, block_size, paths=None, alpha=0.2, beta=0.1):
     grid_coords[:,2] = grid_coords[:,2] - my
 
     if paths is not None:
+        allpts = np.zeros((0,3))
         for i in range(len(paths)):
             paths[i].smooth_points = smooth_path(paths[i].points, alpha, beta)
             paths[i].block_points = block_path(paths[i].smooth_points, block_size)
@@ -50,6 +52,14 @@ def make_voxel_grid(pts, colors, block_size, paths=None, alpha=0.2, beta=0.1):
             paths[i].points[:,0] = paths[i].points[:,0] - mx
             paths[i].points[:,1] = paths[i].points[:,1] - mz
             paths[i].points[:,2] = paths[i].points[:,2] - my
+            allpts = np.concatenate((allpts, paths[i].raw_points), axis=0)
+
+    t1 = np.mean(allpts, axis=0) - person[0]/5
+    t2 = t1 + person[0]
+    b1 = np.round(t1/block_size, 0) - np.array([mx, mz, my])
+    b2 = np.round(t2/block_size, 0) - np.array([mx, mz, my])
+    low = int(b1[1])
+    high = int(b2[1])
 
     mx = np.max(grid_coords[:,0], 0)
     mz = np.max(grid_coords[:,1], 0)
@@ -60,7 +70,7 @@ def make_voxel_grid(pts, colors, block_size, paths=None, alpha=0.2, beta=0.1):
         p = grid_coords[i,:]
         grid[p[0], p[1], p[2]] += 1
 
-    return grid
+    return (grid, list(range(low, high+1)))
 
 
 def do_qlearn(rl_config, num_iter, rand_count):

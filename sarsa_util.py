@@ -277,7 +277,9 @@ def hc_only_reward(rl_config, state, action, new_state):
 
     reward = 0
     dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
-    reward += -50*(np.max(rl_config.voxel_grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/1081)
+    grid = rl_config.voxel_grid
+    column = rl_config.person_column
+    reward += -50*(np.max(grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/np.max(grid))
 
     if action == rl_actions2rid['Do_MakeHotChocolate']:
         adist = np.sqrt(np.square(x-hcpos[0]) + np.square(y-hcpos[1]))  #bs=4
