@@ -38,18 +38,22 @@ def plot_path_rewards(points_file, path_pat, data_ids, config_dir, **extra):
 
 @argh.arg('points_file',
         help='File containing point cloud data as list of points')
+@argh.arg('path_pat',
+        help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
+@argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
 @argh.arg('-b', '--blocksize', default=0.5, help='Side length of grid cube')
 @argh.arg('-s', '--start', default=0, help='Z level to begin plot at')
 @argh.arg('-m', '--max_div', default=8, help='Divide max by this')
-def show_denseplot(points_file, **extra):
+def show_denseplot(points_file, path_pat, data_ids, **extra):
     "Generate and show pointclound density plot"
 
     rl_config = RL_Config()
     rl_config.set_parameters(blocksize=extra['blocksize'])
     rl_config.load_pointcloud(points_file)
+    rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
 
-    display.show_grid(rl_config.voxel_grid, extra['start'], extra['max_div'])
+    display.show_grid(rl_config.voxel_grid, extra['start'], rl_config.person_column, extra['max_div'])
 
     plt.show()
 

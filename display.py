@@ -54,7 +54,7 @@ def show_action_value(Q, plot, s):
 
 
 
-def show_grid(grid, start, maxdiv):
+def show_grid(grid, start, person, maxdiv):
     fig = plt.figure(3)
 
     vmin = None#np.min(grid)
@@ -73,7 +73,7 @@ def show_grid(grid, start, maxdiv):
 
     fig = plt.figure(30)
     a = fig.add_subplot(1,1,1)
-    tmp = 10*np.max(grid[:,6:12,:], axis=1)/1081
+    tmp = -50*np.max(grid[:,person,:], axis=1)/np.max(grid)
     plt.imshow(tmp, cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('cost')
 

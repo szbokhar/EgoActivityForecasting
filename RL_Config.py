@@ -21,6 +21,7 @@ class RL_Config:
 
         self.pc_points = None
         self.pc_colors = None
+        self.pc_vector = None
 
         self.seq_actions = None
         self.rl_actions = None
@@ -28,6 +29,7 @@ class RL_Config:
 
         self.paths = None
         self.voxel_grid = None
+        self.person_column = None
         self.total_SARSA_list = None
         self.path_NN = None
 
@@ -80,9 +82,10 @@ class RL_Config:
         self.rl_state_ids = load_data.get_labeldict(config_dir+'/rl_state_ids.txt')
 
     def load_pointcloud(self, fn_pointcloud):
-        pts, colors = load_data.get_points_and_colors(fn_pointcloud)
+        pts, colors, person_vector = load_data.get_points_and_colors(fn_pointcloud)
         self.pc_points = pts
         self.pc_colors = colors
+        self.pc_vector = person_vector
 
     def load_path_data(self, fn_path_pattern, data_ids):
         self.paths = []
@@ -97,8 +100,8 @@ class RL_Config:
             self.paths.append(Path(path, imagenames, raw_labels))
 
     def format_grid_and_paths(self):
-        self.voxel_grid = util.make_voxel_grid(self.pc_points, self.pc_colors,
-                self.blocksize, paths=self.paths, alpha=self.smooth[0], beta=self.smooth[1])
+        (self.voxel_grid, self.person_column) = util.make_voxel_grid(self.pc_points, self.pc_colors,
+                self.blocksize, self.pc_vector, paths=self.paths, alpha=self.smooth[0], beta=self.smooth[1])
 
     def make_total_SARSA_list(self):
         self.total_SARSA_list = None

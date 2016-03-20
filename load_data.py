@@ -20,7 +20,9 @@ def get_points_and_colors(fn):
     pts = pts[:,0:3]
     col = [l[3:6] for l in tmp]
 
-    return (pts, np.array(col))
+    tmp2 = parse_file(fn+'.info', [float, float, float])
+
+    return (pts, np.array(col), np.array(tmp2))
 
 def get_imagenames_and_path(fn):
     tmp = parse_file(fn, [lambda x: x, float, float, float])
