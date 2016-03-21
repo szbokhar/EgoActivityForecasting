@@ -9,9 +9,9 @@ class RL_Config:
     DEF_ALPHA = 0.9
     DEF_GAMMA = 0.8
     DEF_EPSILON = 0.6
-    DEF_SIGMA = 10
     DEF_BLOCKSIZE = 0.5
     DEF_SMOOTH = [0.2, 0.1]
+    DEF_REWARDS = [100.0, 100.0, 50, 0]
 
     def __init__(self):
         self.fn_points = None
@@ -39,6 +39,8 @@ class RL_Config:
         self.get_random_state = None
         self.explore_step = None
 
+        self.rewards = {}
+
         self.q_shape = None
         self.set_parameters()
 
@@ -51,9 +53,9 @@ class RL_Config:
         summ_text += "alpha = {0}\t\t\t//Learning rate\n".format(self.alpha)
         summ_text += "gamma = {0}\t\t\t//Propogation constants\n".format(self.gamma)
         summ_text += "epsilon = {0}\t\t\t//e-greedy constant\n".format(self.epsilon)
-        summ_text += "sigma = {0}\t\t\t//Path reward spread\n".format(self.sigma)
         summ_text += "blocksize = {0}\t\t\t//side length of one grid block\n".format(self.blocksize)
         summ_text += "smooth = {0}\t\t\t//path smoothing alpha and beta values\n".format(self.smooth)
+        summ_text += "rewards = {0}\t\t\t//reward constant values\n".format(self.rewards)
         return summ_text
 
     def save(self, fname):
@@ -113,13 +115,17 @@ class RL_Config:
                 self.total_SARSA_list = np.concatenate((self.total_SARSA_list, self.paths[i].SARSA_list), axis=0)
 
     def set_parameters(self, alpha=DEF_ALPHA, gamma=DEF_GAMMA, epsilon=DEF_EPSILON,
-            sigma=DEF_SIGMA, blocksize=DEF_BLOCKSIZE, smooth_params=DEF_SMOOTH):
+            blocksize=DEF_BLOCKSIZE, smooth_params=DEF_SMOOTH,
+            rewards=DEF_REWARDS):
         self.alpha = alpha
         self.gamma = gamma
         self.epsilon = epsilon
-        self.sigma = sigma
         self.blocksize = blocksize
         self.smooth = smooth_params
+        self.rewards['Goal'] = rewards[0]
+        self.rewards['ActionPenalty'] = rewards[1]
+        self.rewards['WallPenalty'] = rewards[2]
+        self.rewards['PathReward'] = rewards[3]
 
 class Path:
     def __init__(self, points, images, labels):

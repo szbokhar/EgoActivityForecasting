@@ -275,19 +275,23 @@ def hc_only_reward(rl_config, state, action, new_state):
     x = state[rl2id['Pos_X']]
     y = state[rl2id['Pos_Y']]
 
+    goalR = rl_config.rewards['Goal']
+    actionP = rl_config.rewards['ActionPenalty']
+    wallP = rl_config.rewards['WallPenalty']
+
     reward = 0
     dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
     grid = rl_config.voxel_grid
     column = rl_config.person_column
-    reward += -50*(np.max(grid[state[rl2id['Pos_X']],6:12,state[rl2id['Pos_Y']]])/np.max(grid))
+    reward += -wallP*(np.max(grid[state[rl2id['Pos_X']],column,state[rl2id['Pos_Y']]])/np.max(grid))
 
     if action == rl_actions2rid['Do_MakeHotChocolate']:
         adist = np.sqrt(np.square(x-hcpos[0]) + np.square(y-hcpos[1]))  #bs=4
-        reward += -adist*100
+        reward += -adist*actionP
 
     for p in rl_config.paths:
         if np.all(new_state == p.SARSA_list[-1, (state_size+2):(2*state_size+2)]):
-            reward = 100
+            reward = goalR
 
     return reward
 
