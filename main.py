@@ -201,6 +201,9 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
         scipy.io.savemat(matpath,
             {'Q':Q, 'vals':vals, 'umap':umap, 'voxel_grid':rl_config.voxel_grid})
 
+    print('Saved in :' + savefolder)
+    print(rl_config.person_column)
+
 
     """
     Q[umap == 0] = -2
