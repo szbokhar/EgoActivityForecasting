@@ -46,6 +46,7 @@ def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta
     if paths is not None:
         allpts = np.zeros((0,3))
         for i in range(len(paths)):
+            print(paths[i].points)
             paths[i].smooth_points = smooth_path(paths[i].points, alpha, beta)
             paths[i].block_points = block_path(paths[i].smooth_points, block_size)
             paths[i].points = np.copy(paths[i].block_points)
@@ -70,7 +71,7 @@ def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta
         p = grid_coords[i,:]
         grid[p[0], p[1], p[2]] += 1
 
-    grid = scipy.ndimage.filters.gaussian_filter(grid, 1/block_size)
+    grid = scipy.ndimage.filters.gaussian_filter(grid, 0.5/block_size)
 
     return (grid, list(range(low, high+1)))
 
@@ -112,7 +113,6 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
     alpha = rl_config.alpha
     gamma = rl_config.gamma
     epsilon = rl_config.epsilon
-    sigma = rl_config.sigma
 
     state_size = len(rl_config.rl_state_ids.keys())
     rid2rl_actions = rl_config.rl_actions

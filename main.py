@@ -136,13 +136,13 @@ def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
 @argh.arg('-c', '--batch_size', help='Iteration sample size', default=200)
 @argh.arg('-l', '--elength', help='Episode length ', default=500)
 @argh.arg('-e', '--epsilon', help='epsilon greedy parameter', default=0.9)
-@argh.arg('-s', '--sigma', help='Path reward sigma', default=5000)
-@argh.arg('--start', default=0, help='Z level to begin plot at')
-@argh.arg('--max_div', default=8, help='Divide max by this')
 @argh.arg('--state_functions', help='Functions specification',
         default=['hc_only_make_sarsa_lists','hc_only_NN','hc_only_reward','hc_only_transition'], nargs='+', type=str)
 @argh.arg('--explore_functions', help='Functions specification',
         default=['hc_only_reset','hc_only_explore_step'], nargs='+', type=str)
+@argh.arg('-r', '--rewards',
+    help='Reward Values [Goal, Action Penalty, Wall Penalty, Path Reward]',
+    default=[100, 100, 50, 0], nargs='+', type=float)
 @argh.arg('--save', default=None, help='Save configuration and results in directory')
 def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     "Run basic q-learning algorithm"
@@ -155,9 +155,9 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.set_parameters(
             alpha=extra['alpha'],
             gamma=extra['gamma'],
-            sigma=extra['sigma'],
             epsilon=extra['epsilon'],
-            blocksize=extra['blocksize'])
+            blocksize=extra['blocksize'],
+            rewards=extra['rewards'])
     rl_config.paths_to_SARSA = getattr(sarsa_util, extra['state_functions'][0])
     rl_config.make_path_NN = getattr(sarsa_util, extra['state_functions'][1])
     rl_config.reward_function = getattr(sarsa_util, extra['state_functions'][2])
@@ -207,7 +207,6 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     display.show_value(Q, 1)
     #display.show_value(umap, 20)
     display.plot_1D(vals)
-    #display.plot_path_reward(rl_config.path_NN, rl_config.voxel_grid, extra['sigma'])
     display.show_grid(rl_config.voxel_grid, extra['start'], extra['max_div'])
     display.show_action_value(Q, 5, [0])
     display.show_action_value(Q, 6, [1])
