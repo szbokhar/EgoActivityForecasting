@@ -264,9 +264,13 @@ def hc_only_reward(rl_config, state, action, new_state):
 
     sarsa = rl_config.total_SARSA_list
     if rl_config.hc_pos is None:
+        hc_data = np.zeros((0,2))
         for i in range(sarsa.shape[0]):
             if rid2rl_actions[sarsa[i,state_size]] == "Do_MakeHotChocolate":
-                rl_config.hc_pos = tuple(sarsa[i, [rl2id['Pos_X'],rl2id['Pos_Y']]])
+                hc_data = np.concatenate((hc_data, sarsa[i, [rl2id['Pos_X'],rl2id['Pos_Y']]].reshape((1,2))), axis=0)
+
+        rl_config.hc_pos = scipy.spatial.KDTree(hc_data)
+
 
     hcpos = rl_config.hc_pos
 
@@ -286,7 +290,7 @@ def hc_only_reward(rl_config, state, action, new_state):
     reward += -wallP*(np.max(grid[state[rl2id['Pos_X']],column,state[rl2id['Pos_Y']]])/np.max(grid))
 
     if action == rl_actions2rid['Do_MakeHotChocolate']:
-        adist = np.sqrt(np.square(x-hcpos[0]) + np.square(y-hcpos[1]))  #bs=4
+        (adist,_) = hcpos.query(state[posidx])
         reward += -adist*actionP
 
     for p in rl_config.paths:

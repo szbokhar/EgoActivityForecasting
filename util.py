@@ -46,7 +46,6 @@ def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta
     if paths is not None:
         allpts = np.zeros((0,3))
         for i in range(len(paths)):
-            print(paths[i].points)
             paths[i].smooth_points = smooth_path(paths[i].points, alpha, beta)
             paths[i].block_points = block_path(paths[i].smooth_points, block_size)
             paths[i].points = np.copy(paths[i].block_points)
@@ -118,7 +117,6 @@ def do_explore_qlearn(rl_config, num_iter=2000, rand_count=500, reset_episode=10
     rid2rl_actions = rl_config.rl_actions
     rl_actions2rid = {v: k for k, v in rid2rl_actions.items()}
 
-    print(rl_config.total_SARSA_list)
     Q = np.zeros(rl_config.q_shape)
     umap = np.zeros(rl_config.q_shape)
     sars = np.zeros((memory, rl_config.total_SARSA_list.shape[1]))
