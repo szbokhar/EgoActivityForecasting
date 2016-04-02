@@ -30,6 +30,7 @@ class RL_Config:
         self.paths = None
         self.voxel_grid = None
         self.person_column = None
+        self.person_vector = None
         self.total_SARSA_list = None
         self.path_NN = None
 
@@ -102,7 +103,7 @@ class RL_Config:
             self.paths.append(Path(path, imagenames, raw_labels))
 
     def format_grid_and_paths(self):
-        (self.voxel_grid, self.person_column) = util.make_voxel_grid(self.pc_points, self.pc_colors,
+        (self.voxel_grid, self.person_column, self.person_vector) = util.make_voxel_grid(self.pc_points, self.pc_colors,
                 self.blocksize, self.pc_vector, paths=self.paths, alpha=self.smooth[0], beta=self.smooth[1])
 
     def make_total_SARSA_list(self):

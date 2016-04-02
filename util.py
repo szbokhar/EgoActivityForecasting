@@ -72,7 +72,7 @@ def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta
 
     grid = scipy.ndimage.filters.gaussian_filter(grid, 0.5/block_size)
 
-    return (grid, list(range(low, high+1)))
+    return (grid, list(range(low, high+1)), b2-b1)
 
 
 def do_qlearn(rl_config, num_iter, rand_count):

@@ -204,20 +204,87 @@ def explore_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     print('Saved in :' + savefolder)
     print(rl_config.person_column)
 
+@argh.arg('points_file',
+        help='File containing point cloud data as list of points')
+@argh.arg('path_pat',
+        help='Filename pattern for path file data (eg. data/qm_hc{0}_{1}.txt)')
+@argh.arg('data_ids', help='List of data ids', nargs='+', type=int)
+@argh.arg('config_dir', help='Config directory')
+@argh.arg('-a', '--alpha', help='Learning rate', default=0.5)
+@argh.arg('-g', '--gamma', help='Discount factor', default=0.5)
+@argh.arg('-b', '--blocksize', help='Grid block size', default=0.5)
+@argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
+@argh.arg('-m', '--memory_size', help='Total memory size', default=200)
+@argh.arg('-c', '--batch_size', help='Iteration sample size', default=200)
+@argh.arg('-l', '--elength', help='Episode length ', default=500)
+@argh.arg('-e', '--epsilon', help='epsilon greedy parameter', default=0.9)
+@argh.arg('--state_functions', help='Functions specification',
+        default=['hc_only_make_sarsa_lists','hc_only_NN','hc_only_reward','hc_only_transition'], nargs='+', type=str)
+@argh.arg('--explore_functions', help='Functions specification',
+        default=['hc_only_reset','hc_only_explore_step'], nargs='+', type=str)
+@argh.arg('-r', '--rewards',
+    help='Reward Values [Goal, Action Penalty, Wall Penalty, Path Reward]',
+    default=[100, 100, 50, 0], nargs='+', type=float)
+@argh.arg('--save', default=None, help='Save configuration and results in directory')
+def save_processed_data(points_file, path_pat, data_ids, config_dir, **extra):
+    "Run basic q-learning algorithm"
+    num_iter = extra['iter']
+    memory_size = extra['memory_size']
+    batch_size = extra['batch_size']
+    episode_length = extra['elength']
 
-    """
-    Q[umap == 0] = -2
-    display.show_value(Q, 1)
-    #display.show_value(umap, 20)
-    display.plot_1D(vals)
-    display.show_grid(rl_config.voxel_grid, extra['start'], extra['max_div'])
-    display.show_action_value(Q, 5, [0])
-    display.show_action_value(Q, 6, [1])
+    rl_config = RL_Config()
+    rl_config.set_parameters(
+            alpha=extra['alpha'],
+            gamma=extra['gamma'],
+            epsilon=extra['epsilon'],
+            blocksize=extra['blocksize'],
+            rewards=extra['rewards'])
+    rl_config.paths_to_SARSA = getattr(sarsa_util, extra['state_functions'][0])
+    rl_config.make_path_NN = getattr(sarsa_util, extra['state_functions'][1])
+    rl_config.reward_function = getattr(sarsa_util, extra['state_functions'][2])
+    rl_config.transition_function = getattr(sarsa_util, extra['state_functions'][3])
+    rl_config.get_random_state = getattr(sarsa_util, extra['explore_functions'][0])
+    rl_config.explore_step = getattr(sarsa_util, extra['explore_functions'][1])
+    rl_config.set_loadfiles(
+            fn_points=points_file,
+            fn_config=config_dir,
+            fnp_path=path_pat,
+            data_ids=data_ids)
 
+    savefolder = extra['save']
+    if savefolder is not None:
+        if not os.path.exists(savefolder):
+            os.makedirs(savefolder)
 
-    plt.show()
-    """
+        rl_config.save(savefolder)
+        summpath = os.path.join(savefolder, 'summary.txt')
+        f = open(summpath, 'wb')
+        summ = rl_config.get_summary()
+        summ += "num_iter = {0}\t\t\t// number of training iterations\n".format(num_iter)
+        summ += "batch_size = {0}\t\t\t//batch train size\n".format(batch_size)
+        summ += "memory_size = {0}\t\t\t//total memory size\n".format(memory_size)
+        summ += "episode_length = {0}\t\t\t//length of an episode\n".format(episode_length)
+        f.write(bytes(summ, 'UTF-8'))
+        f.close()
 
+    rl_config.load_data()
+    rl_config.format_grid_and_paths()
+    rl_config.paths_to_SARSA(rl_config)
+
+    if savefolder is not None:
+        if not os.path.exists(savefolder):
+            os.makedirs(savefolder)
+
+        matpath = os.path.join(savefolder,'processed_data.mat')
+        scipy.io.savemat(matpath, {
+            'voxel_grid': rl_config.voxel_grid,
+            'SARSA_list': rl_config.total_SARSA_list,
+            'person_vector': rl_config.person_vector,
+            'config_dir': config_dir})
+
+    print('Saved in :' + savefolder)
+    print(rl_config.person_column)
 
 @argh.arg('model', help='Folder containing the model files to load')
 @argh.arg('-i', '--iter', help='Number of q-learning iterations', default=1000)
@@ -251,4 +318,4 @@ def load_qlearn(model, **extra):
 if __name__ == "__main__":
     np.set_printoptions(threshold=np.nan, linewidth=120)
     argh.dispatch_commands([show_points_and_path, basic_qlearn, show_denseplot,
-            explore_qlearn, load_qlearn, plot_path_rewards])
+            explore_qlearn, load_qlearn, plot_path_rewards, save_processed_data])
