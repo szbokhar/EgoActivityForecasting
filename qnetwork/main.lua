@@ -1,6 +1,7 @@
 require 'pl'
 require 'nn'
 require 'cunn'
+require 'cudnn'
 require 'image'
 require 'explore'
 
@@ -11,29 +12,52 @@ Load config file and learn qnetwork
     -i, --iterations        (default 10000)
     -m, --memory_size       (default 1000)
     -b, --batch_size        (default 100)
-    -l, --learning_rate     (default 0.01)
+    -q, --net_reset         (default 10)
+    -l, --learning_rate     (default 0.001)
     -p, --print_freq        (default 50)
     -r, --state_reset       (default 150)
     <def_file>              (string)
 ]]
 
 print(cli_args)
+local model = '../models/pdata3'
+local fname_saveresult1 = paths.concat(model, 'res_%s_%s.png')
+local fname_saveinit1 = paths.concat(model, 'init_%s_%s.png')
 
 rl = dofile(cli_args.def_file)
 
 
---[[
-qwidth = 64
-qheight = 64
+qwidth = rl.env.width
+qheight = rl.env.length
+w = pdata.voxel_grid:size(1)
+h = pdata.voxel_grid:size(3)
+map = torch.Tensor(w,h)
+for x=1,w do
+    for y=1,h do
+        map[x][y] = pdata.voxel_grid[{{x},{6,13},{y}}]:max()
+    end
+end
+util.save_vz(string.format(fname_saveinit1, 'true', 'map'), map)
 
-inn = util.gen_grid(qwidth, qheight, 8, 8)
-
-outt = rl.net:forward(inn)
-util.save_vz(fname_saveinit, outt:view(qwidth,qheight):clone())
+for i=0,1 do
+    st = torch.zeros(3)
+    st[i+1] = 1
+    input = rl.env:gen_grid(st)
+    outt = rl.net:forward(input)
+    for j=1,#rlacts do
+        out = outt[{{},{j}}]:clone()
+        util.save_vz(string.format(fname_saveinit1, i,j), out:view(qwidth,qheight):clone())
+    end
+end
 
 util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env)
-
-outt = rl.net:forward(inn)
-image.save(fname_saveresult, im)
-util.save_vz(fname_saveresult, outt:view(qwidth,qheight):clone())
---]]
+for i=0,1 do
+    st = torch.zeros(3)
+    st[i+1] = 1
+    input = rl.env:gen_grid(st)
+    outt = rl.net:forward(input)
+    for j=1,#rlacts do
+        out = outt[{{},{j}}]:clone()
+        util.save_vz(string.format(fname_saveresult1, i,j), out:view(qwidth,qheight):clone())
+    end
+end

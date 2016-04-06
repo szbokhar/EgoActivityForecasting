@@ -52,11 +52,9 @@ function Dynamics:step_one()
 end
 
 function Dynamics:step(n)
-    for i=0,n do
+    for i=1,n do
         reset = self:step_one()
-        print(i)
         if reset then
-            print('outt')
             break
         end
     end
@@ -66,7 +64,7 @@ function Dynamics:step(n)
         self.cstate = nil
     end
 
-    return s, a, r, ns
+    return s, a, r, ns, reset
 end
 
 

@@ -2,17 +2,6 @@ require 'cunn'
 
 local util = {}
 
-function util.gen_grid(w,h,xrange,yrange)
-    inn = torch.rand(w*h,2):cuda()
-    for x=0,(w-1) do
-        for y=0,(h-1) do
-            inn[1+x*w+y][1] = (x*2/w-1)*xrange/2
-            inn[1+x*h+y][2] = (y*2/h-1)*yrange/2
-        end
-    end
-    return inn
-end
-
 function util.save_vz(fname, grid)
     print('Saving ' .. fname .. ': min=' .. grid:min() .. 'max=' .. grid:max())
     im = grid
@@ -32,40 +21,68 @@ function util.rev_table(tbl)
 end
 
 function util.train_qnetwork(net, crit, params, dynamics)
-    local memory = nil
-    local batch = torch.Tensor(params.batch_size, 3):cuda()
+    local memoryIn = nil
+    local memoryOut = nil
+    local memoryTerm = nil
+    local outMask = nil
+    local hat = net:clone()
+    local batchIn = torch.Tensor(params.batch_size, dynamics.inSize)
+    local batchOut = torch.Tensor(params.batch_size, dynamics.outSize)
+    local batchTerm = torch.Tensor(params.batch_size, 1)
+    local batchMask = torch.Tensor(params.batch_size, dynamics.outSize)
     for i=1,params.iterations do
-        local input = torch.rand(3):view(1,3):cuda()*2-1
+        local input, outIdx, reward, new_state, terminal = dynamics:step(1)
+        local output = torch.zeros(1,dynamics.outSize)
+        output[1][outIdx] = reward
 
+        local mask = torch.zeros(1,dynamics.outSize):scatter(2,torch.LongTensor{outIdx}:view(1,1),1)
 
-        input[1][3] = 10*util.bool2int(torch.sqrt((input[1][1]+1.0)^2+(input[1][2]+0.5)^2)<0.5)
+        input = dynamics:normalize_points(input)
 
-        if not memory then
-            memory = input:clone()
+        if not memoryIn then
+            memoryIn = input:clone()
+            memoryOut = output:clone()
+            memoryTerm = torch.Tensor(1,1):fill(util.bool2int(terminal))
+            outMask = mask:clone()
         end
         if i < params.memory_size then
-            memory = torch.cat(memory, input,1)
+            memoryIn = torch.cat(memoryIn, input,1)
+            memoryOut = torch.cat(memoryOut, output,1)
+            memoryTerm = torch.cat(memoryTerm, torch.Tensor(1,1):fill(util.bool2int(terminal)),1)
+            outMask = torch.cat(outMask, mask,1)
         else
             idx = torch.random(1,params.memory_size)
-            memory[idx] = input
+            memoryIn[idx] = input
+            memoryOut[idx] = output
+            memoryTerm[idx] = util.bool2int(terminal)
+            outMask[idx] = mask
         end
 
-        ms = memory:size(1)
+        ms = memoryIn:size(1)
         bs = math.min(params.batch_size, ms)
-        ridx = torch.randperm(ms)
-        for s=1,bs do
-            batch[s] = memory[ridx[s]]:clone()
-        end
+        ridx = torch.randperm(ms):type('torch.LongTensor')
+        batchIn = memoryIn:index(1, ridx[{{1,bs}}]):cuda()
+        batchOut = memoryOut:index(1, ridx[{{1,bs}}]):cuda()
+        batchMask = outMask:index(1, ridx[{{1,bs}}]):cuda()
 
-        local f = crit:forward(net:forward(batch[{{1,bs},{1,2}}]), batch[{{1,bs},{3}}])
+        local cvals = hat:forward(batchIn[{{1,bs},{}}])
+
+        local result = net:forward(batchIn[{{1,bs},{}}])
+
+        crit:forward(result, batchOut[{{1,bs},{}}])
 
         net:zeroGradParameters()
-        local grad = crit:backward(net.output, batch[{{1,bs},{3}}])
-        net:backward(batch[{{1,bs},{1,2}}],grad )
+        local grad = crit:backward(net.output, batchOut[{{1,bs},{}}])
+        grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0), 0)
+        net:backward(batchIn[{{1,bs},{}}], grad)
         net:updateParameters(params.learning_rate)
+        local loss = grad:pow(2):sum()
 
         if i % params.print_freq == 0 then
-            print('Iter: ' .. i .. '\t Loss=' .. f)
+            print('Iter: ' .. i .. '\t Loss=' .. loss)
+        end
+        if i % params.net_reset == 0 then
+            hat = net:clone()
         end
     end
 end

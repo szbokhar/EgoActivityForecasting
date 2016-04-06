@@ -1,0 +1,9 @@
+0 Nothing
+1 Move_North
+2 Move_East
+3 Move_South
+4 Move_West
+5 Move_Up
+6 Move_Down
+7 Do_MakeHotChocolate
+8 Finish
