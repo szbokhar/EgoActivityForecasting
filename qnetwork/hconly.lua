@@ -19,19 +19,19 @@ pdata = matio.load(fname_data)
 pdata.SARSA_list[{{},{#rlids+1}}]:apply(function (x) return x+1 end)
 actsrl = util.rev_table(rlacts)
 idsrl = util.rev_table(rlids)
+pdata.voxel_grid = pdata.voxel_grid:cuda()
 
 input_size = #rlids
 output_size = #rlacts
 
 -- Define Network
 local net = nn.Sequential()
-net:add(nn.Linear(input_size,500))
+--net:add(nn.Linear(input_size,4096))
+net:add(nn.Linear(input_size-3,1000))
 net:add(nn.ReLU())
-net:add(nn.Linear(500,1000))
+net:add(nn.Linear(1000,1000))
 net:add(nn.ReLU())
-net:add(nn.Linear(1000,200))
-net:add(nn.ReLU())
-net:add(nn.Linear(200,output_size))
+net:add(nn.Linear(1000,output_size))
 net = net:cuda()
 
 -- Define Criterion
@@ -52,7 +52,8 @@ env.inSize = input_size
 env.outSize = output_size
 
 function env:query(state)
-    local den = torch.ones(1,#rlids)
+    --local den = torch.ones(1,#rlids)
+    local den = torch.ones(1,#rlids-3)
     den[1][idsrl['Pos_X']] = self.width
     den[1][idsrl['Pos_Y']] = self.height
     qstate = torch.cdiv(state, den)*2-1
@@ -62,28 +63,35 @@ end
 function env:new_state()
     local x = torch.random(1,self.width)
     local y = torch.random(1,self.length)
-    local st = torch.zeros(1,#rlids)
+    --local st = torch.zeros(1,#rlids)
+    local st = torch.zeros(1,#rlids-3)
     st[1][idsrl['Pos_X']] = x
     st[1][idsrl['Pos_Y']] = y
-    st[1][idsrl['BeforeHC']] = 1
+    --st[1][idsrl['BeforeHC']] = 1
     return st
 end
 
 function env:reward(state, action, next_state)
     local x1 = state[1][idsrl['Pos_X']]
     local y1 = state[1][idsrl['Pos_Y']]
-    local bhc = state[1][idsrl['BeforeHC']]
-    local ahc = state[1][idsrl['AfterHC']]
+    --local bhc = state[1][idsrl['BeforeHC']]
+    --local ahc = state[1][idsrl['AfterHC']]
     local pos = torch.Tensor({{x1,y1}})
 
     local reward = 0
     --reward = reward + pdata.voxel_grid[{{x1},{6,12},{y1}}]:max()
+    --[[
     if bhc == 1 and action == actsrl['Do_MakeHotChocolate']then
         local dist = torch.dist(pos,self.hcpos)
-        reward = reward - 50 * util.bool2int(dist>10)
+        reward = reward - 50 * util.bool2int(dist>5)
     elseif ahc == 1 and action == actsrl['Finish'] then
         local dist = torch.dist(pos,self.endpos)
-        reward = reward + 50 * util.bool2int(dist < 10)
+        reward = reward + 50 * util.bool2int(dist < 5)
+    end
+    --]]
+    if action == actsrl['Do_MakeHotChocolate']then
+        local dist = torch.dist(pos,self.hcpos)
+        reward = reward + 50 * util.bool2int(dist<2)
     end
     return reward
 end
@@ -93,9 +101,9 @@ function env:transition(instate, action)
     local a = rlacts[action]
     local x = state[1][idsrl['Pos_X']]
     local y = state[1][idsrl['Pos_Y']]
-    local bhc = state[1][idsrl['BeforeHC']]
-    local ahc = state[1][idsrl['AfterHC']]
-    local fin = state[1][idsrl['Finished']]
+    --local bhc = state[1][idsrl['BeforeHC']]
+    --local ahc = state[1][idsrl['AfterHC']]
+    --local fin = state[1][idsrl['Finished']]
     local isFinished = false
 
     if a == 'Move_North' then
@@ -107,15 +115,19 @@ function env:transition(instate, action)
     elseif a == 'Move_West' then
         state[1][idsrl['Pos_X']] = math.max(x-1, 1)
     elseif a == 'Do_MakeHotChocolate' then
+        isFinished = true
+        --[[
         if bhc == 1 then
-            state[1][idsrl['BeforeHC']] = 0
-            state[1][idsrl['AfterHC']] = 1
+            state[1][idsrl['BeforeHC'] ] = 0
+            state[1][idsrl['AfterHC'] ] = 1
+            state[1][idsrl['Finished'] ] = 0
         end
     elseif a == 'Finish' then
-        state[1][idsrl['BeforeHC']] = 0
-        state[1][idsrl['AfterHC']] = 0
-        state[1][idsrl['Finished']] = 1
+        state[1][idsrl['BeforeHC'] ] = 0
+        state[1][idsrl['AfterHC'] ] = 0
+        state[1][idsrl['Finished'] ] = 1
         isFinished = true
+        --]]
     end
     return state, isFinished
 end
@@ -135,7 +147,7 @@ function env:explore_action(state)
         local v = vec[1]
         local lu = {n,s,e,w,h,f}
 
-        local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[h],v[f]})
+        local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[h]})
         _,gact = torch.max(opts, 1)
         act = lu[gact[1]]
     else
@@ -146,10 +158,14 @@ function env:explore_action(state)
                 }
         if torch.uniform() < 0.9 then
             act = rset[torch.random(1,4)]
-        elseif state[1][idsrl['BeforeHC']] == 1 then
+        else
             act = actsrl['Do_MakeHotChocolate']
-        elseif state[1][idsrl['AfterHC']] == 1 then
+            --[[
+        elseif state[1][idsrl['BeforeHC'] ] == 1 then
+            act = actsrl['Do_MakeHotChocolate']
+        elseif state[1][idsrl['AfterHC'] ] == 1 then
             act = actsrl['Finish']
+            --]]
         end
     end
     return act
@@ -158,14 +174,12 @@ end
 function env:gen_grid(s)
     local w = self.width
     local h = self.length
-    inn = torch.rand(w*h,#rlids):cuda()
+    --inn = torch.rand(w*h,#rlids):cuda()
+    inn = torch.Tensor(w*h,#rlids-3):cuda()
     for x=0,(w-1) do
         for y=0,(h-1) do
             inn[1+x*h+y][idsrl['Pos_X']] = x
             inn[1+x*h+y][idsrl['Pos_Y']] = y
-            inn[1+x*h+y][idsrl['BeforeHC']] = s[1]
-            inn[1+x*h+y][idsrl['AfterHC']] = s[2]
-            inn[1+x*h+y][idsrl['Finished']] = s[3]
         end
     end
     inn = self:normalize_points(inn)
