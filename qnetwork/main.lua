@@ -17,13 +17,23 @@ Load config file and learn qnetwork
     -p, --print_freq        (default 50)
     -r, --state_reset       (default 150)
     -g, --gamma             (default 0.95)
+    -c, --comments          (default '')
     <def_file>              (string)
+    <savedir>               (string)
 ]]
 
-print(cli_args)
+print(tostring(cli_args))
 local model = '../models/pdata3'
-local fname_saveresult1 = paths.concat(model, 'res_%s_%s.png')
-local fname_saveinit1 = paths.concat(model, 'init_%s_%s.png')
+local fname_saveresult1 = paths.concat(cli_args.savedir, 'res_%s_%s.png')
+local fname_saveinit1 = paths.concat(cli_args.savedir, 'init_%s_%s.png')
+local fname_comments = paths.concat(cli_args.savedir, 'summary.txt')
+os.execute('mkdir -p ' .. cli_args.savedir)
+file = io.open(fname_comments, 'w')
+for k,v in pairs(cli_args) do
+    file:write(k .. ': ' .. v .. '\n')
+end
+file:write(cli_args.comments .. '\n')
+file:close()
 
 rl = dofile(cli_args.def_file)
 
@@ -42,7 +52,7 @@ small = map:min()
 range = map:max() - small
 util.save_vz(string.format(fname_saveinit1, 'true', 'map'), map, small, range)
 
-for i=0,1 do
+for i=0,0 do
     st = torch.zeros(3)
     st[i+1] = 1
     input = rl.env:gen_grid(st)
@@ -57,7 +67,7 @@ end
 
 --util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env)
 util.train_basicnetwork(rl.net, rl.crit, cli_args, rl.env)
-for i=0,1 do
+for i=0,0 do
     st = torch.zeros(3)
     st[i+1] = 1
     input = rl.env:gen_grid(st)

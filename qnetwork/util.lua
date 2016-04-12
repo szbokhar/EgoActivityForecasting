@@ -5,7 +5,6 @@ local util = {}
 function util.save_vz(fname, grid, min, range)
     print('Saving ' .. fname .. ': min=' .. grid:min() .. 'max=' .. grid:max())
     im = grid
-    print(min, range)
     im = im - min
     im = im/range
     image.save(fname, im)
