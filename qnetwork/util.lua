@@ -22,93 +22,6 @@ end
 
 function util.train_qnetwork(net, crit, params, dynamics)
     local memoryState = nil
-    local memoryReward = nil
-    local memoryNState = nil
-    local memoryTerm = nil
-    local memoryMask = nil
-    local hat = net:clone()
-    local batchIn = torch.Tensor(params.batch_size, dynamics.inSize)
-    local batchNIn = torch.Tensor(params.batch_size, dynamics.inSize)
-    local batchReward = torch.Tensor(params.batch_size, dynamics.outSize)
-    local batchTerm = torch.Tensor(params.batch_size, 1)
-    local batchMask = torch.Tensor(params.batch_size, dynamics.outSize)
-    for i=1,params.iterations do
-        local input, outIdx, reward, new_state, terminal = dynamics:step(4)
-        local output = torch.zeros(1,dynamics.outSize)
-        output[1][outIdx] = reward
-
-        local mask = torch.zeros(1,dynamics.outSize):scatter(2,torch.LongTensor{outIdx}:view(1,1),1)
-
-        input = dynamics:normalize_points(input)
-        new_state = dynamics:normalize_points(input)
-
-        if not memoryState then
-            memoryState = input:clone()
-            memoryNState = new_state:clone()
-            memoryReward = output:clone()
-            memoryTerm = torch.Tensor(1,1):fill(util.bool2int(terminal))
-            memoryMask = mask:clone()
-        end
-        if i < params.memory_size then
-            memoryState = torch.cat(memoryState, input,1)
-            memoryNState = torch.cat(memoryNState, new_state,1)
-            memoryReward = torch.cat(memoryReward, output,1)
-            memoryTerm = torch.cat(memoryTerm, torch.Tensor(1,1):fill(util.bool2int(terminal)),1)
-            memoryMask = torch.cat(memoryMask, mask,1)
-        else
-            idx = torch.random(1,params.memory_size)
-            memoryState[idx] = input
-            memoryNState[idx] = new_state
-            memoryReward[idx] = output
-            memoryTerm[idx] = util.bool2int(terminal)
-            memoryMask[idx] = mask
-        end
-
-        ms = memoryState:size(1)
-        bs = math.min(params.batch_size, ms)
-        ridx = torch.randperm(ms):type('torch.LongTensor')
-        batchIn = memoryState:index(1, ridx[{{1,bs}}]):cuda()
-        batchNIn = memoryNState:index(1, ridx[{{1,bs}}]):cuda()
-        batchReward = memoryReward:index(1, ridx[{{1,bs}}]):cuda()
-        batchMask = memoryMask:index(1, ridx[{{1,bs}}]):cuda()
-        batchTerm = memoryTerm:index(1, ridx[{{1,bs}}])
-        batchFinal = torch.zeros(#batchReward):cuda()
-
-        local cvals = hat:forward(batchNIn[{{1,bs},{}}])
-        local nQvals, nQidx = cvals:max(2)
-        nQvals = nQvals*params.gamma
-        batchFinal:maskedCopy(batchMask, nQvals)
-        batchFinal = batchFinal + batchReward
-        local bterms = batchTerm:nonzero()
-        if bterms:nDimension() ~= 0 then
-            local tmp = batchTerm:repeatTensor(1,dynamics.outSize):cuda()
-            local termMask = torch.cmul(tmp, batchMask)
-            batchFinal:maskedCopy(termMask, batchReward:maskedSelect(termMask))
-        end
-
-
-        local result = net:forward(batchIn[{{1,bs},{}}])
-
-        crit:forward(result, batchFinal[{{1,bs},{}}])
-
-        net:zeroGradParameters()
-        local grad = crit:backward(net.output, batchFinal[{{1,bs},{}}])
-        grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0), 0)
-        net:backward(batchIn[{{1,bs},{}}], grad)
-        net:updateParameters(params.learning_rate)
-        local loss = grad:pow(2):sum()
-
-        if i % params.print_freq == 0 then
-            print('Iter: ' .. i .. '\t Loss=' .. loss)
-        end
-        if i % params.net_reset == 0 then
-            hat = net:clone()
-        end
-    end
-end
-
-function util.train_basicnetwork(net, crit, params, dynamics)
-    local memoryState = nil
     local memoryNState = nil
     local memoryReward = nil
     local memoryTerm = nil
@@ -234,7 +147,7 @@ function util.train_basicnetwork(net, crit, params, dynamics)
     end
 end
 
-function util.train_basicnetwork_backup(net, crit, params, dynamics)
+function util.train_basicnetwork(net, crit, params, dynamics)
     local memoryIn = nil
     local memoryOut = nil
     local memoryTerm = nil

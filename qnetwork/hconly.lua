@@ -42,7 +42,7 @@ local env = Dynamics(150)
 env.width = pdata.voxel_grid:size(1)
 env.length = pdata.voxel_grid:size(3)
 env.height = pdata.voxel_grid:size(2)
-env.epsilon = 0.5
+env.epsilon = 0.3
 local mkidx = torch.nonzero(torch.eq(pdata.SARSA_list[{{},{#rlids+1}}],actsrl['Do_MakeHotChocolate']))
 local endidx = torch.nonzero(torch.eq(pdata.SARSA_list[{{},{#rlids+1}}],actsrl['Finish']))
 mkidx = mkidx[1][1]; endidx = endidx[1][1]
@@ -79,7 +79,6 @@ function env:reward(state, action, next_state)
     local pos = torch.Tensor({{x1,y1}})
 
     local reward = 0
-    --reward = reward + pdata.voxel_grid[{{x1},{6,12},{y1}}]:max()
     --[[
     if bhc == 1 and action == actsrl['Do_MakeHotChocolate']then
         local dist = torch.dist(pos,self.hcpos)
@@ -91,7 +90,9 @@ function env:reward(state, action, next_state)
     --]]
     if action == actsrl['Do_MakeHotChocolate']then
         local dist = torch.dist(pos,self.hcpos)
-        reward = reward + 50 * util.bool2int(dist<2)
+        reward = reward + 80 * util.bool2int(dist<4)
+    else
+        reward = reward - 0.5*pdata.voxel_grid[{{x1},{6,12},{y1}}]:max()
     end
     return reward
 end
@@ -147,7 +148,7 @@ function env:explore_action(state)
         local v = vec[1]
         local lu = {n,s,e,w,h,f}
 
-        local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[h],v[f]})
+        local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[h]})
         _,gact = torch.max(opts, 1)
         act = lu[gact[1]]
     else

@@ -65,8 +65,8 @@ for i=0,0 do
     end
 end
 
---util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env)
-util.train_basicnetwork(rl.net, rl.crit, cli_args, rl.env)
+util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env)
+--util.train_basicnetwork(rl.net, rl.crit, cli_args, rl.env)
 for i=0,0 do
     st = torch.zeros(3)
     st[i+1] = 1
