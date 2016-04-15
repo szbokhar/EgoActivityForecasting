@@ -9,7 +9,7 @@ import os
 
 import util
 import load_data
-import sarsa_util
+import sarsa_util2 as sarsa_util
 import display
 from RL_Config import *
 
@@ -261,6 +261,7 @@ def save_processed_data(points_file, path_pat, data_ids, config_dir, **extra):
         summpath = os.path.join(savefolder, 'summary.txt')
         f = open(summpath, 'wb')
         summ = rl_config.get_summary()
+        summ += "config_dir = {0}\t\t\t//directory storing data config files\n".format(config_dir)
         summ += "num_iter = {0}\t\t\t// number of training iterations\n".format(num_iter)
         summ += "batch_size = {0}\t\t\t//batch train size\n".format(batch_size)
         summ += "memory_size = {0}\t\t\t//total memory size\n".format(memory_size)

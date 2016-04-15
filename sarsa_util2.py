@@ -2,99 +2,6 @@ import numpy as np
 import scipy.spatial
 from numpy.random import rand, choice, randint
 
-def full_bagofactions(rl_config):
-    def get_direction(dx):
-        x = dx[0]
-        z = dx[1]
-        y = dx[2]
-
-        if x == 0 and y == 0 and z == 0:
-            return 0
-        elif x > 0:
-            return 2
-        elif x < 0:
-            return 4
-        elif y > 0:
-            return 1
-        elif y < 0:
-            return 3
-        elif z > 0:
-            return 5
-        elif z < 0:
-            return 6
-
-    lnames = rl_config.seq_actions
-    rl_actions = rl_config.rl_actions
-    final_reward = 100
-    med_reward = 0
-
-    ka2rl = {3:7, 4:9, 5:8, 6:10, 7:11}
-    rl2id = lambda x: x-7
-
-    for p in range(len(rl_config.paths)):
-        path = rl_config.paths[p]
-        sa_list = []
-        boa = [0, 0, 0, 0, 0]
-        nboa = [0, 0, 0, 0, 0]
-
-        for i in range(len(path.points)-1):
-            pos = path.points[i,:]
-            npos = path.points[i+1,:]
-            lbl_num = path.seq_labels[i]
-            lbl = lnames[lbl_num]
-
-            act = -1
-
-            if lbl == 'Standing':
-                act = 0     # Nothing
-            elif lbl == 'Walking':
-                act = get_direction(npos - pos)
-            elif lbl_num >= 3:
-                nlbl_num = path.seq_labels[i+1]
-                if nlbl_num != lbl_num:
-                    act = ka2rl[lbl_num]
-                    nboa[rl2id(act)] += 1
-                else:
-                    act = 0
-
-            state = pos
-
-            state = state.tolist()
-            state.extend(boa)
-            sa_list.append((state, act))
-            boa = list(nboa)
-
-        sars_list = np.zeros((len(sa_list)-1, 18))
-
-        for i in range(len(sa_list)-1):
-            sars_list[i, :] = sa_list[i][0] + [sa_list[i][1]] + [med_reward] + sa_list[i+1][0]
-
-        sars_list[-1, 9] = final_reward
-
-        rl_config.paths[p].SARSA_list = sars_list
-
-def full_path_NN(rl_config):
-    sars_list = rl_config.total_SARSA_list
-    point_sets = {}
-
-    for i in range(sars_list.shape[0]):
-        S = sars_list[i]
-        idx = tuple(S[3:8])
-        if idx not in point_sets:
-            point_sets[idx] = S[[0,2]].reshape((1,2))
-        else:
-            point_sets[idx] = np.concatenate((point_sets[idx], S[[0,2]].reshape((1,2))), axis=0)
-
-
-    for k in point_sets:
-        point_sets[k] = scipy.spatial.KDTree(point_sets[k])
-
-
-    return point_sets
-
-
-
-
 def hc_only_make_sarsa_lists(rl_config):
     sid2seq_actions = rl_config.seq_actions
     seq_actions2sid = {v: k for k, v in sid2seq_actions.items()}
@@ -131,7 +38,9 @@ def hc_only_make_sarsa_lists(rl_config):
         sa_list = []
 
         state = np.zeros(state_size)
+        state[rl_state2id['BeforeHC']] = 1
         next_state = np.zeros(state_size)
+        next_state[rl_state2id['BeforeHC']] = 1
 
         for i in range(len(path.points)-1):
             pos = path.points[i,:]
@@ -149,12 +58,14 @@ def hc_only_make_sarsa_lists(rl_config):
             elif sid2seq_actions[pos_sid] == 'Make_Hot_Chocolate':
                 if path.seq_labels[i+1] != pos_sid:
                     act = rl_actions2rid['Do_MakeHotChocolate']
-                    next_state[rl_state2id['MakeHotChocolate']] += 1
+                    next_state[rl_state2id['AfterHC']] = 1
+                    next_state[rl_state2id['BeforeHC']] = 0
                 else:
                     act = get_direction(npos - pos)
             elif sid2seq_actions[pos_sid] == 'Finish':
                 act = rl_actions2rid['Finish']
-                next_state[rl_state2id['MakeHotChocolate']] += 1
+                next_state[rl_state2id['AfterHC']] = 0
+                next_state[rl_state2id['Finished']] = 1
             else:
                 act = get_direction(npos - pos)
 
@@ -198,17 +109,17 @@ def hc_only_NN(rl_config):
     sars_list = rl_config.total_SARSA_list
     id2rl_state = rl_config.rl_state_ids
     rl2id = {v: k for k, v in id2rl_state.items()}
-    idxidx = [rl2id['MakeHotChocolate']]
+    idxidx = [rl2id['BeforeHC'], rl2id['AfterHC'], rl2id['Finished']]
     posidx = [rl2id['Pos_X'], rl2id['Pos_Y']]
     point_sets = {}
 
     for i in range(sars_list.shape[0]):
         S = sars_list[i]
-        idx = tuple(idxidx)
-        if S[idx] not in point_sets:
-            point_sets[S[idx]] = S[posidx].reshape((1,len(posidx)))
+        idx = list(idxidx)
+        if tuple(S[idx]) not in point_sets:
+            point_sets[tuple(S[idx])] = S[posidx].reshape((1,len(posidx)))
         else:
-            point_sets[S[idx]] = np.concatenate((point_sets[S[idx]], S[posidx].reshape((1,len(posidx)))), axis=0)
+            point_sets[tuple(S[idx])] = np.concatenate((point_sets[tuple(S[idx])], S[posidx].reshape((1,len(posidx)))), axis=0)
 
     for k in point_sets:
         point_sets[k] = scipy.spatial.KDTree(point_sets[k])
@@ -276,7 +187,7 @@ def hc_only_reward(rl_config, state, action, new_state):
 
     hcpos = rl_config.hc_pos
 
-    idxidx = [rl2id['MakeHotChocolate']]
+    idxidx = [rl2id['BeforeHC'], rl2id['AfterHC'], rl2id['Finished']]
     posidx = [rl2id['Pos_X'], rl2id['Pos_Y']]
     x = state[rl2id['Pos_X']]
     y = state[rl2id['Pos_Y']]
@@ -286,7 +197,7 @@ def hc_only_reward(rl_config, state, action, new_state):
     wallP = rl_config.rewards['WallPenalty']
 
     reward = 0
-    dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
+    dist,_ = rl_config.path_NN[tuple(state[list(idxidx)])].query(state[posidx])
     grid = rl_config.voxel_grid
     column = rl_config.person_column
     reward += -wallP*(np.max(grid[state[rl2id['Pos_X']],column,state[rl2id['Pos_Y']]])/np.max(grid))
@@ -296,7 +207,9 @@ def hc_only_reward(rl_config, state, action, new_state):
         reward += -adist*actionP
 
     for p in rl_config.paths:
+        print('tic')
         if np.all(new_state == p.SARSA_list[-1, (state_size+2):(2*state_size+2)]):
+            print('toc')
             reward = goalR
 
     return reward
