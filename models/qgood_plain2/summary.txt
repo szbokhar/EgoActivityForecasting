@@ -1,0 +1,12 @@
+memory_size: 10000
+state_reset: 150
+net_reset: 30
+batch_size: 100
+gamma: 0.95
+comments: term reward=50, dist<3
+learning_rate: 0.05
+iterations: 100000
+savedir: ../models/qtry1
+def_file: hconly.lua
+print_freq: 50
+term reward=50, dist<3
