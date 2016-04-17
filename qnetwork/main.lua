@@ -1,7 +1,6 @@
 require 'pl'
 require 'nn'
 require 'cunn'
-require 'cudnn'
 require 'image'
 require 'explore'
 
@@ -27,6 +26,7 @@ local model = '../models/pdata3'
 local fname_saveresult1 = paths.concat(cli_args.savedir, 'res_%s_%s.png')
 local fname_saveinit1 = paths.concat(cli_args.savedir, 'init_%s_%s.png')
 local fname_comments = paths.concat(cli_args.savedir, 'summary.txt')
+local fname_network = paths.concat(cli_args.savedir, 'Qnet.th')
 os.execute('mkdir -p ' .. cli_args.savedir)
 file = io.open(fname_comments, 'w')
 for k,v in pairs(cli_args) do
@@ -36,7 +36,6 @@ file:write(cli_args.comments .. '\n')
 file:close()
 
 rl = dofile(cli_args.def_file)
-
 
 qwidth = rl.env.width
 qheight = rl.env.length
@@ -65,7 +64,7 @@ for i=0,0 do
     end
 end
 
-util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env)
+util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env, fname_saveresult1, fname_network)
 --util.train_basicnetwork(rl.net, rl.crit, cli_args, rl.env)
 for i=0,0 do
     st = torch.zeros(3)

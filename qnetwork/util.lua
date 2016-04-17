@@ -20,7 +20,7 @@ function util.rev_table(tbl)
     return rev
 end
 
-function util.train_qnetwork(net, crit, params, dynamics)
+function util.train_qnetwork(net, crit, params, dynamics, fnamesave, fname_network)
     local memoryState = nil
     local memoryNState = nil
     local memoryReward = nil
@@ -119,6 +119,18 @@ function util.train_qnetwork(net, crit, params, dynamics)
 
             if i % params.print_freq == 0 then
                 print('Iter: ' .. i .. '\t Loss=' .. loss)
+            end
+            if i % (100*params.print_freq) == 0 then
+                st = torch.zeros(3)
+                input = rl.env:gen_grid(st)
+                outt = rl.net:forward(input)
+                min = outt:min()
+                range = outt:max() - min
+                for j=1,#rlacts do
+                    out = outt[{{},{j}}]:clone()
+                    util.save_vz(string.format(fnamesave, i,j), out:view(qwidth,qheight):clone(), min, range)
+                end
+                torch.save(fname_network, hat)
             end
         end
 
