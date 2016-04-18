@@ -9,7 +9,7 @@ import os
 
 import util
 import load_data
-import sarsa_util2 as sarsa_util
+import su_2state as sarsa_util
 import display
 from RL_Config import *
 

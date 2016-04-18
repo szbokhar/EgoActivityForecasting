@@ -1,0 +1,7 @@
+0 Move_North
+1 Move_East
+2 Move_South
+3 Move_West
+4 Do_WashCup
+5 Do_MakeHC
+6 Finish

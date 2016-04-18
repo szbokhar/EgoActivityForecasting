@@ -1,0 +1,9 @@
+0 None
+1 Standing
+2 Walking
+3 Pickup_Cup
+4 Wash_Cup
+5 Put_Down_Cup
+6 Make_Hot_Chocolate
+7 Pickup_Staw
+8 Finish
