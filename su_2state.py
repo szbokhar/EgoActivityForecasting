@@ -159,9 +159,9 @@ def hc_only_explore_step(rl_config, Q, state, epsilon=0.9):
 
         if not is_greed:
             if rand(1) < 0.9:
-                act = randint(0, 5)
+                act = randint(0, 4)
             else:
-                act = randint(5, len(rid2rl_actions.keys()))
+                act = randint(4, len(rid2rl_actions.keys()))
 
         (next_state, act, isFinished) = rl_config.transition_function(rl_config, state, act, Q)
 

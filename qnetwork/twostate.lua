@@ -27,21 +27,11 @@ output_size = #rlacts
 -- Define Network
 local net = nn.Sequential()
 --net:add(nn.Linear(input_size,4096))
---[[
 net:add(nn.Linear(input_size-3,1000))
 net:add(nn.ReLU())
 net:add(nn.Linear(1000,1000))
 net:add(nn.ReLU())
 net:add(nn.Linear(1000,output_size))
---]]
-net:add(nn.SpatialConvolution(1,20,5,5,1,1,2,2))
-net:add(nn.ReLU())
-net:add(nn.SpatialConvolution(20,10,3,3))
-net:add(nn.ReLU())
-net:add(nn.View(49*10))
-net:add(nn.Linear(49*10,1000))
-net:add(nn.ReLU())
-net:add(nn.Linear(1000,9))
 net = net:cuda()
 
 -- Define Criterion
@@ -52,7 +42,6 @@ local env = Dynamics(150)
 env.width = pdata.voxel_grid:size(1)
 env.length = pdata.voxel_grid:size(3)
 env.height = pdata.voxel_grid:size(2)
-print(pdata.voxel_grid:size())
 env.epsilon = 0.3
 local mkidx = torch.nonzero(torch.eq(pdata.SARSA_list[{{},{#rlids+1}}],actsrl['Do_MakeHotChocolate']))
 local endidx = torch.nonzero(torch.eq(pdata.SARSA_list[{{},{#rlids+1}}],actsrl['Finish']))
@@ -61,18 +50,14 @@ env.hcpos = pdata.SARSA_list[{{mkidx},{idsrl['Pos_X'],idsrl['Pos_Y']}}]
 env.endpos = pdata.SARSA_list[{{endidx},{idsrl['Pos_X'],idsrl['Pos_Y']}}]
 env.inSize = input_size
 env.outSize = output_size
-env.grid2dpad = 4
-env.grid2d = pdata.voxel_grid[{{},{6,12},{}}]:max(2):view(env.width, env.length)
-env.grid2d = env.grid2d - env.grid2d:mean()
-env.grid2d = env.grid2d / env.grid2d:std()
-env.grid2d = nn.SpatialZeroPadding(env.grid2dpad,
-        env.grid2dpad, env.grid2dpad, env.grid2dpad):forward(env.grid2d:view(1,env.width, env.length))
-        :view(env.width+2*env.grid2dpad, env.length+2*env.grid2dpad)
 
 function env:query(state)
-    qstate = self:normalize_points(state)
-    net:forward(qstate)
-    return net.output
+    --local den = torch.ones(1,#rlids)
+    local den = torch.ones(1,#rlids-3)
+    den[1][idsrl['Pos_X']] = self.width
+    den[1][idsrl['Pos_Y']] = self.height
+    qstate = torch.cdiv(state, den)*2-1
+    return net:forward(qstate:cuda())
 end
 
 function env:new_state()
@@ -105,7 +90,7 @@ function env:reward(state, action, next_state)
     --]]
     if action == actsrl['Do_MakeHotChocolate']then
         local dist = torch.dist(pos,self.hcpos)
-        reward = reward + 50 * util.bool2int(dist<3)
+        reward = reward + 50 * util.bool2int(dist<4)
         --[[
     else
         reward = reward - 0.5*pdata.voxel_grid[{{x1},{6,12},{y1}}]:max()
@@ -162,7 +147,7 @@ function env:explore_action(state)
         local w = actsrl['Move_West']
         local h = actsrl['Do_MakeHotChocolate']
         local f = actsrl['Finish']
-        local v = vec
+        local v = vec[1]
         local lu = {n,s,e,w,h,f}
 
         local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[h]})
@@ -194,10 +179,10 @@ function env:gen_grid(s)
     local h = self.length
     --inn = torch.rand(w*h,#rlids):cuda()
     inn = torch.Tensor(w*h,#rlids-3):cuda()
-    for x=1,w do
-        for y=1,h do
-            inn[1+(x-1)*h+y-1][idsrl['Pos_X']] = x
-            inn[1+(x-1)*h+y-1][idsrl['Pos_Y']] = y
+    for x=0,(w-1) do
+        for y=0,(h-1) do
+            inn[1+x*h+y][idsrl['Pos_X']] = x
+            inn[1+x*h+y][idsrl['Pos_Y']] = y
         end
     end
     inn = self:normalize_points(inn)
@@ -207,21 +192,10 @@ end
 function env:normalize_points(pts)
     local w = self.width
     local h = self.length
-    --[[
     pts[{{},{idsrl['Pos_X']}}] = pts[{{},{idsrl['Pos_X']}}]*2/w-1
     pts[{{},{idsrl['Pos_Y']}}] = pts[{{},{idsrl['Pos_Y']}}]*2/h-1
-    --]]
 
-    local ret = torch.Tensor(pts:size(1),1,9,9):cuda()
-
-    for i=1,pts:size(1) do
-        local x = pts[i][1]+env.grid2dpad
-        local y = pts[i][2]+env.grid2dpad
-        local map = self.grid2d[{{x-4,x+4},{y-4,y+4}}]
-        ret[i][1] = map
-    end
-
-    return ret
+    return pts
 end
 
 
