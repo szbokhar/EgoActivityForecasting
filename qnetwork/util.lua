@@ -30,7 +30,7 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
     local termOut = nil
     local termTerm = nil
     local termMask = nil
-    local hat = net:clone()
+    local hat = netClone(net)
     local batchState = torch.Tensor(params.batch_size, dynamics.inSize)
     local batchNState = torch.Tensor(params.batch_size, dynamics.inSize)
     local batchTarget = torch.Tensor(params.batch_size, dynamics.outSize)
@@ -94,43 +94,46 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
             ms = memoryState:size(1)
             bs = math.min(params.batch_size, ms)
             ridx = torch.randperm(ms):type('torch.LongTensor')
-            batchState = memoryState:index(1, ridx[{{1,bs}}]):cuda()
-            batchNState = memoryNState:index(1, ridx[{{1,bs}}]):cuda()
-            batchTarget = memoryReward:index(1, ridx[{{1,bs}}]):cuda()
-            batchMask = memoryMask:index(1, ridx[{{1,bs}}]):cuda()
-            batchFinal = torch.zeros(#batchTarget):cuda()
+            batchState = memoryState:index(1, ridx[{{1,bs}}])
+            batchNState = memoryNState:index(1, ridx[{{1,bs}}])
+            batchTarget = memoryReward:index(1, ridx[{{1,bs}}])
+            batchMask = memoryMask:index(1, ridx[{{1,bs}}])
+            batchFinal = torch.zeros(#batchTarget)
 
-            local cvals = hat:forward(batchNState[{{1,bs},{}}])
+            local cvals = netForward(hat, batchNState[{{1,bs},{}}])
             local nQvals, nQidx = cvals:max(2)
             nQvals = nQvals*params.gamma
             batchFinal:maskedCopy(batchMask:eq(1), nQvals)
             batchFinal = batchFinal + batchTarget
 
-            local result = net:forward(batchState[{{1,bs},{}}])
+            local result = netForward(net, batchState[{{1,bs},{}}])
 
             crit:forward(result, batchFinal[{{1,bs},{}}])
 
-            net:zeroGradParameters()
-            local grad = crit:backward(net.output, batchFinal[{{1,bs},{}}])
-            grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0), 0)
-            net:backward(batchState[{{1,bs},{}}], grad)
-            net:updateParameters(params.learning_rate)
+            netZeroGradParameters(net)
+            local grad = crit:backward(result:cuda(), batchFinal[{{1,bs},{}}]:cuda())
+            grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0):cuda(), 0)
+            netBackward(net, batchState[{{1,bs},{}}], grad)
+            netUpdateParameters(net, params.learning_rate)
             local loss = grad:pow(2):sum()
 
             if i % params.print_freq == 0 then
                 print('Iter: ' .. i .. '\t Loss=' .. loss)
             end
-            if i % (100*params.print_freq) == 0 then
-                st = torch.zeros(3)
-                input = rl.env:gen_grid(st)
-                outt = rl.net:forward(input)
-                min = outt:min()
-                range = outt:max() - min
-                for j=1,#rlacts do
-                    out = outt[{{},{j}}]:clone()
-                    util.save_vz(string.format(fnamesave, i,j), out:view(qwidth,qheight):clone(), min, range)
+            if i % (400*params.print_freq) == 0 then
+                for phs=1,4 do
+                    st = torch.zeros(3)
+                    input = rl.env:gen_grid(st)
+                    outt = rl.net[phs]:forward(input)
+                    min = outt:min()
+                    range = outt:max() - min
+                    for j=1,#rlacts do
+                        out = outt[{{},{j}}]:clone()
+                        util.save_vz(string.format(fnamesave,i..'-'..phs,j), out:view(qwidth,qheight):clone(), min, range)
+                    end
+                    torch.save(string.format(fname_network, phs), hat)
                 end
-                torch.save(fname_network, hat)
+                print('---> ' .. os.date())
             end
         end
 
@@ -138,23 +141,23 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
             ms = termIn:size(1)
             bs = math.min(params.batch_size, ms)
             ridx = torch.randperm(ms):type('torch.LongTensor')
-            batchState = termIn:index(1, ridx[{{1,bs}}]):cuda()
-            batchTarget = termOut:index(1, ridx[{{1,bs}}]):cuda()
-            batchMask = termMask:index(1, ridx[{{1,bs}}]):cuda()
+            batchState = termIn:index(1, ridx[{{1,bs}}])
+            batchTarget = termOut:index(1, ridx[{{1,bs}}])
+            batchMask = termMask:index(1, ridx[{{1,bs}}])
 
-            local result = net:forward(batchState[{{1,bs},{}}])
+            local result = netForward(net, batchState[{{1,bs},{}}])
 
             crit:forward(result, batchTarget[{{1,bs},{}}])
 
-            net:zeroGradParameters()
-            local grad = crit:backward(net.output, batchTarget[{{1,bs},{}}])
-            grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0), 0)
-            net:backward(batchState[{{1,bs},{}}], grad)
-            net:updateParameters(params.learning_rate)
+            netZeroGradParameters(net)
+            local grad = crit:backward(result:cuda(), batchTarget[{{1,bs},{}}]:cuda())
+            grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0):cuda(), 0)
+            netBackward(net, batchState[{{1,bs},{}}], grad)
+            netUpdateParameters(net, params.learning_rate)
         end
 
         if i % params.net_reset == 0 then
-            hat = net:clone()
+            hat = netClone(net)
         end
     end
 end
