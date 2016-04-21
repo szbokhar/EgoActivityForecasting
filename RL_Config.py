@@ -47,6 +47,7 @@ class RL_Config:
 
 
         # Specific attributed
+        self.wash_pos = None
         self.hc_pos = None
 
     def get_summary(self):

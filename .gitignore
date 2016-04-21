@@ -63,3 +63,6 @@ target/
 
 # vim swap
 .*swp
+
+# models
+models/*
