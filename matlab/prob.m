@@ -28,6 +28,7 @@ D = zeros([85, 58, 3])
 tot = zeros([85, 58, 3])
 
 figure(3)
+colormap(gray)
 imagesc(V)
 hold on
 lay = 1
@@ -45,18 +46,18 @@ while 1
     count = size(K,1)
     sum(D(:))
 
-    [ys, xs, ls] = ind2sub(size(D), K);
-    qk_left = sub2ind(size(eQ), ys, xs, ls, 2*ones([count, 1]));
-    qk_down = sub2ind(size(eQ), ys, xs, ls, 3*ones([count, 1]));
-    qk_right = sub2ind(size(eQ), ys, xs, ls, 4*ones([count, 1]));
-    qk_up = sub2ind(size(eQ), ys, xs, ls, 5*ones([count, 1]));
-    qk_hc = sub2ind(size(eQ), ys, xs, ls, 8*ones([count, 1]));
+    [ys, xs, lst] = ind2sub(size(D), K);
+    qk_left = sub2ind(size(eQ), ys, xs, lst, 2*ones([count, 1]));
+    qk_down = sub2ind(size(eQ), ys, xs, lst, 3*ones([count, 1]));
+    qk_right = sub2ind(size(eQ), ys, xs, lst, 4*ones([count, 1]));
+    qk_up = sub2ind(size(eQ), ys, xs, lst, 5*ones([count, 1]));
+    qk_hc = sub2ind(size(eQ), ys, xs, lst, 8*ones([count, 1]));
 
-    K_up = sub2ind(size(D), ys-1, xs, ls);
-    K_left = sub2ind(size(D), ys, xs-1, ls);
-    K_down = sub2ind(size(D), ys+1, xs, ls);
-    K_right = sub2ind(size(D), ys, xs+1, ls);
-    K_hc = sub2ind(size(D), ys, xs, ls+1);
+    K_up = sub2ind(size(D), ys-1, xs, lst);
+    K_left = sub2ind(size(D), ys, xs-1, lst);
+    K_down = sub2ind(size(D), ys+1, xs, lst);
+    K_right = sub2ind(size(D), ys, xs+1, lst);
+    K_hc = sub2ind(size(D), ys, xs, lst+1);
 
 
     nD = zeros(size(D));

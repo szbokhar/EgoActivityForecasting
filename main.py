@@ -311,6 +311,7 @@ def load_qlearn(model, **extra):
     display.plot_1D(vals.transpose())
     display.show_action_value(Q, 5, [0])
     display.show_action_value(Q, 6, [1])
+    display.show_action_value(Q, 7, [2])
 
     display.show_value(umap, 22)
     plt.show()
