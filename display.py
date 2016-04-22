@@ -64,7 +64,7 @@ def show_grid(grid, start, person, maxdiv):
     print(grid.shape, vmin, vmax)
 
     for i in range(grid.shape[1]):
-        print(i, np.max(grid[:,i,:]))
+        print(i, np.sum(grid[:,i,:]))
 
     for i in range(9):
         a = fig.add_subplot(2,5,i+1)
@@ -73,7 +73,11 @@ def show_grid(grid, start, person, maxdiv):
 
     fig = plt.figure(30)
     a = fig.add_subplot(1,1,1)
-    tmp = -50*np.max(grid[:,person,:], axis=1)/np.max(grid)
+    tmp = np.sum(grid[:,person,:], axis=1)/np.max(grid)
+
+    vmin = np.min(tmp)
+    vmax = np.max(tmp)/maxdiv
+    print(vmin, vmax)
     plt.imshow(tmp, cmap=plt.get_cmap(cmap_name), vmin=vmin, vmax=vmax, interpolation='nearest')
     a.set_title('cost')
 

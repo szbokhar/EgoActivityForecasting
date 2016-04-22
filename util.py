@@ -69,6 +69,7 @@ def make_voxel_grid(pts, colors, block_size, person, paths=None, alpha=0.2, beta
     for i in range(grid_coords.shape[0]):
         p = grid_coords[i,:]
         grid[p[0], p[1], p[2]] += 1
+    grid = np.log(grid+1)
 
     grid = scipy.ndimage.filters.gaussian_filter(grid, 0.5/block_size)
 

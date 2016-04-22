@@ -212,7 +212,7 @@ def hc_only_reward(rl_config, state, action, new_state):
     dist,_ = rl_config.path_NN[state[tuple(idxidx)]].query(state[posidx])
     grid = rl_config.voxel_grid
     column = rl_config.person_column
-    reward += -wallP*(np.max(grid[state[rl2id['Pos_X']],column,state[rl2id['Pos_Y']]])/np.max(grid))
+    reward += -wallP*(np.sum(grid[state[rl2id['Pos_X']],column,state[rl2id['Pos_Y']]])/np.max(grid))
 
     if action == rl_actions2rid['Do_MakeHC']:
         (adist,_) = hcpos.query(state[posidx])

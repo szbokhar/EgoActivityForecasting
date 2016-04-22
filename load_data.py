@@ -21,6 +21,15 @@ def get_points_and_colors(fn):
     col = [l[3:6] for l in tmp]
 
     tmp2 = parse_file(fn+'.info', [float, float, float])
+    (minx, miny, minz) = (tmp2[1][0], tmp2[1][1], tmp2[1][2])
+    (maxx, maxy, maxz) = (tmp2[2][0], tmp2[2][1], tmp2[2][2])
+
+    # Hack to crop points. Only for use with gates9
+    fil = (pts[:,0]>minx)*(pts[:,1]>miny)*(pts[:,2]>minz)*(pts[:,0]<maxx)*(pts[:,1]<maxy)*(pts[:,2]<maxz)
+    col = np.array(col)
+    pts = pts[fil,:]
+    col = col[fil,:]
+
 
     return (pts, np.array(col), np.array(tmp2))
 

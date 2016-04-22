@@ -54,6 +54,7 @@ def show_denseplot(points_file, path_pat, data_ids, **extra):
     rl_config.format_grid_and_paths()
 
     display.show_grid(rl_config.voxel_grid, extra['start'], rl_config.person_column, extra['max_div'])
+    print(rl_config.person_column)
 
     plt.show()
 
