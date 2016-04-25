@@ -248,7 +248,10 @@ def hc_only_transition(rl_config, state, act, Q):
     elif rid2rl_actions[act] == 'Move_West':
         next_state[rl_state2id['Pos_X']] = max(x-1,0)
     elif rid2rl_actions[act] == 'Do_WashCup':
-        next_state[rl_state2id['Phase']] = 1
+        if state[rl_state2id['Phase']] == 0:
+            next_state[rl_state2id['Phase']] = 1
+        else:
+            act = -1
     elif rid2rl_actions[act] == 'Do_MakeHC':
         if state[rl_state2id['Phase']] == 1:
             next_state[rl_state2id['Phase']] = 2
