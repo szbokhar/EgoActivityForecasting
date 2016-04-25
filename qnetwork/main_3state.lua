@@ -27,6 +27,7 @@ local fname_saveresult1 = paths.concat(cli_args.savedir, 'res_%s_%s.png')
 local fname_saveinit1 = paths.concat(cli_args.savedir, 'init_%s_%s.png')
 local fname_comments = paths.concat(cli_args.savedir, 'summary.txt')
 local fname_network = paths.concat(cli_args.savedir, 'Qnet_%s.th')
+local fname_mat = paths.concat(cli_args.savedir, 'Qnet.mat')
 os.execute('mkdir -p ' .. cli_args.savedir)
 file = io.open(fname_comments, 'w')
 for k,v in pairs(cli_args) do
@@ -44,13 +45,13 @@ h = pdata.voxel_grid:size(3)
 map = torch.Tensor(w,h)
 for x=1,w do
     for y=1,h do
-        map[x][y] = pdata.voxel_grid[{{x},{6,13},{y}}]:max()
+        map[x][y] = pdata.voxel_grid[{{x},{5,10},{y}}]:sum()
     end
 end
 small = map:min()
 range = map:max() - small
 util.save_vz(string.format(fname_saveinit1, 'true', 'map'), map, small, range)
-
+--[[
 for i=0,0 do
     st = torch.zeros(3)
     st[i+1] = 1
@@ -64,7 +65,8 @@ for i=0,0 do
     end
 end
 
-util.train_qnetwork_3state(rl.net, rl.crit, cli_args, rl.env, fname_saveresult1, fname_network)
+--]]
+util.train_qnetwork_3state(rl.net, rl.crit, cli_args, rl.env, fname_saveresult1, fname_network, fname_mat)
 --util.train_qnetwork(rl.net, rl.crit, cli_args, rl.env, fname_saveresult1, fname_network)
 --util.train_basicnetwork(rl.net, rl.crit, cli_args, rl.env)
 for i=0,0 do

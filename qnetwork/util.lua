@@ -1,4 +1,5 @@
 require 'cunn'
+local matio = require 'matio'
 
 local util = {}
 
@@ -20,7 +21,7 @@ function util.rev_table(tbl)
     return rev
 end
 
-function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fname_network)
+function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fname_network, fname_mat)
     local memoryState = nil
     local memoryNState = nil
     local memoryReward = nil
@@ -36,7 +37,8 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
     local batchTarget = torch.Tensor(params.batch_size, dynamics.outSize)
     local batchTerm = torch.Tensor(params.batch_size, 1)
     local batchMask = torch.Tensor(params.batch_size, dynamics.outSize)
-    for i=1,params.iterations do
+    local lossvals = torch.Tensor(10)
+    for i=0,params.iterations do
         local input, outIdx, reward, new_state, terminal = dynamics:step(1)
         local output = torch.zeros(1,dynamics.outSize)
         output[1][outIdx] = reward
@@ -119,20 +121,27 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
 
             if i % params.print_freq == 0 then
                 print('Iter: ' .. i .. '\t Loss=' .. loss)
+                lossvals = torch.cat(lossvals, torch.Tensor{loss},1)
             end
-            if i % (400*params.print_freq) == 0 then
-                for phs=1,4 do
+            outt = {}
+            tomat = torch.Tensor(qwidth, qheight, #net, #rlacts)
+            if i % (400*params.print_freq) == 0 or i == params.iterations then
+                for phs=1,#net do
                     st = torch.zeros(3)
                     input = rl.env:gen_grid(st)
-                    outt = rl.net[phs]:forward(input)
-                    min = outt:min()
-                    range = outt:max() - min
+                    outt['act'..phs] = rl.net[phs]:forward(input)
+                    outt['act'..phs] = outt['act'..phs]:type('torch.DoubleTensor')
+                    min = outt['act'..phs]:min()
+                    range = outt['act'..phs]:max() - min
                     for j=1,#rlacts do
-                        out = outt[{{},{j}}]:clone()
+                        out = outt['act'..phs][{{},{j}}]:clone()
+                        tomat[{{},{},phs,j}] = out:view(qwidth,qheight)
                         util.save_vz(string.format(fnamesave,i..'-'..phs,j), out:view(qwidth,qheight):clone(), min, range)
                     end
                     torch.save(string.format(fname_network, phs), hat)
+
                 end
+                matio.save(fname_mat, {Q=tomat, vals=lossvals, umap=torch.Tensor{10}, voxel_grid=pdata.voxel_grid:type('torch.DoubleTensor')})
                 print('---> ' .. os.date())
             end
         end

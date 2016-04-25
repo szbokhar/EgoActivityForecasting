@@ -6,7 +6,7 @@ local paths = require 'paths'
 local load_data = require 'load_data'
 local util = require 'util'
 
-local model = '../models/3state_data'
+local model = '../models/3state_crop_data'
 local config = '../config_2state'
 
 local fname_data = paths.concat(model, 'processed_data.mat')
@@ -160,7 +160,7 @@ function env:reward(state, action, next_state)
     local phs = state[1][idsrl['Phase']]
     local pos = torch.Tensor({{x1,y1}})
 
-    local rad = 3
+    local rad = 4
     local reward = 0
     if action == actsrl['Finish'] then
         if phs == 3 then
@@ -172,21 +172,21 @@ function env:reward(state, action, next_state)
     elseif action == actsrl['Do_MakeHC'] then
         if phs == 2 then
             local dist = torch.dist(pos,self.hcpos)
-            reward = reward - 0.5 * dist
+            local isin = util.bool2int(dist<rad)
+            reward = reward - 10 * math.max(dist-rad/2,0) * (1-isin) + 20 * isin
         else
             reward = reward - 20
         end
     elseif action == actsrl['Do_WashCup'] then
         if phs == 1 then
             local dist = torch.dist(pos,self.wshpos)
-            reward = reward - 0.5 * dist
+            local isin = util.bool2int(dist<rad)
+            reward = reward - 10 * math.max(dist-rad/2,0) * (1-isin) + 20 * isin
         else
             reward = reward - 20
         end
-        --[[
     else
-        reward = reward - 0.5*pdata.voxel_grid[{{x1},{6,12},{y1}}]:max()
-        --]]
+        reward = reward - 0.25*pdata.voxel_grid[{{x1},{5,10},{y1}}]:sum()
     end
     return reward
 end
