@@ -32,9 +32,9 @@ def plot_path_rewards(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
 
-    display.plot_path_reward(rl_config.path_NN, rl_config.voxel_grid, extra['sigma'])
+    #display.plot_path_reward(rl_config.path_NN, rl_config.voxel_grid, extra['sigma'])
 
-    plt.show()
+    #plt.show()
 
 @argh.arg('points_file',
         help='File containing point cloud data as list of points')
@@ -53,10 +53,10 @@ def show_denseplot(points_file, path_pat, data_ids, **extra):
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
 
-    display.show_grid(rl_config.voxel_grid, extra['start'], rl_config.person_column, extra['max_div'])
+    #display.show_grid(rl_config.voxel_grid, extra['start'], rl_config.person_column, extra['max_div'])
     print(rl_config.person_column)
 
-    plt.show()
+    #plt.show()
 
 @argh.arg('points_file',
         help='File containing point cloud data as list of points')
@@ -77,9 +77,9 @@ def show_points_and_path(points_file, path_pat, data_ids, **extra):
     rl_config.load_path_data(path_pat, data_ids)
     rl_config.format_grid_and_paths()
 
-    display.make_basic_plot(rl_config, 0, ['b-', 'r-', 'g-'], count)
+    #display.make_basic_plot(rl_config, 0, ['b-', 'r-', 'g-'], count)
 
-    plt.show()
+    #plt.show()
 
 
 @argh.arg('points_file',
@@ -118,10 +118,11 @@ def basic_qlearn(points_file, path_pat, data_ids, config_dir, **extra):
     rl_config.paths_to_SARSA(rl_config)
 
     Q, vals = util.do_qlearn(rl_config, num_iter, memory_size)
-    display.show_value(np.log(Q*1000+1))
-    display.plot_1D(vals)
+    print('Finished basic Q-Learn. Uncomment dsiplay commands to see result.')
+    #display.show_value(np.log(Q*1000+1), 13)
+    #display.plot_1D(vals)
 
-    plt.show()
+    #plt.show()
 
 @argh.arg('points_file',
         help='File containing point cloud data as list of points')
@@ -308,14 +309,14 @@ def load_qlearn(model, **extra):
     umap = Qdict['umap']
 
     Q[umap == 0] = -5
-    display.show_value(Q, 1)
-    display.plot_1D(vals.transpose())
-    display.show_action_value(Q, 5, [0])
-    display.show_action_value(Q, 6, [1])
-    display.show_action_value(Q, 7, [2])
+    #display.show_value(Q, 1)
+    #display.plot_1D(vals.transpose())
+    #display.show_action_value(Q, 5, [0])
+    #display.show_action_value(Q, 6, [1])
+    #display.show_action_value(Q, 7, [2])
 
-    display.show_value(umap, 22)
-    plt.show()
+    #display.show_value(umap, 22)
+    #plt.show()
 
 
 if __name__ == "__main__":

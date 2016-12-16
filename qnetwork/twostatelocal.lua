@@ -27,34 +27,49 @@ output_size = #rlacts
 print(output_size)
 
 -- Define Network
+chan1 = 30
+chan2 = 20
+hidd = 1000
 
 local net1 = nn.Sequential()
-net1:add(nn.Linear(input_size,1000))
+net1:add(nn.SpatialConvolution(1,chan1,5,5,1,1,2,2))
 net1:add(nn.ReLU())
-net1:add(nn.Linear(1000,1000))
+net1:add(nn.SpatialConvolution(chan1,chan2,3,3))
 net1:add(nn.ReLU())
-net1:add(nn.Linear(1000,output_size))
+net1:add(nn.View(49*chan2))
+net1:add(nn.Linear(49*chan2,hidd))
+net1:add(nn.ReLU())
+net1:add(nn.Linear(hidd,output_size))
 net1 = net1:cuda()
 local net2 = nn.Sequential()
-net2:add(nn.Linear(input_size,1000))
+net2:add(nn.SpatialConvolution(1,chan1,5,5,1,1,2,2))
 net2:add(nn.ReLU())
-net2:add(nn.Linear(1000,1000))
+net2:add(nn.SpatialConvolution(chan1,chan2,3,3))
 net2:add(nn.ReLU())
-net2:add(nn.Linear(1000,output_size))
+net2:add(nn.View(49*chan2))
+net2:add(nn.Linear(49*chan2,hidd))
+net2:add(nn.ReLU())
+net2:add(nn.Linear(hidd,output_size))
 net2 = net2:cuda()
 local net3 = nn.Sequential()
-net3:add(nn.Linear(input_size,1000))
+net3:add(nn.SpatialConvolution(1,chan1,5,5,1,1,2,2))
 net3:add(nn.ReLU())
-net3:add(nn.Linear(1000,1000))
+net3:add(nn.SpatialConvolution(chan1,chan2,3,3))
 net3:add(nn.ReLU())
-net3:add(nn.Linear(1000,output_size))
+net3:add(nn.View(49*chan2))
+net3:add(nn.Linear(49*chan2,hidd))
+net3:add(nn.ReLU())
+net3:add(nn.Linear(hidd,output_size))
 net3 = net3:cuda()
 local net4 = nn.Sequential()
-net4:add(nn.Linear(input_size,1000))
+net4:add(nn.SpatialConvolution(1,chan1,5,5,1,1,2,2))
 net4:add(nn.ReLU())
-net4:add(nn.Linear(1000,1000))
+net4:add(nn.SpatialConvolution(chan1,chan2,3,3))
 net4:add(nn.ReLU())
-net4:add(nn.Linear(1000,output_size))
+net4:add(nn.View(49*chan2))
+net4:add(nn.Linear(49*chan2,hidd))
+net4:add(nn.ReLU())
+net4:add(nn.Linear(hidd,output_size))
 net4 = net4:cuda()
 
 local allNets = {}
@@ -63,12 +78,12 @@ allNets[2] = net2
 allNets[3] = net3
 allNets[4] = net4
 
-function netClone(self)
+function netClone(net)
     local newall = {}
-    newall[1] = self[1]:clone()
-    newall[2] = self[2]:clone()
-    newall[3] = self[3]:clone()
-    newall[4] = self[4]:clone()
+    newall[1] = net[1]:clone()
+    newall[2] = net[2]:clone()
+    newall[3] = net[3]:clone()
+    newall[4] = net[4]:clone()
     return newall
 end
 
@@ -86,10 +101,12 @@ function netForward(net, batchIn, batchPhase)
         local miniIdx = batchPhase:eq(i):nonzero()
         if miniIdx:nDimension() ~= 0 then
             miniIdx = miniIdx:select(2,1)
-            local miniBatch = batchIn:index(1,miniIdx):cuda()
-            local cval = net[i]:forward(miniBatch):type('torch.DoubleTensor')
-            fidx = 1
-            miniIdx:apply(function(x) batchOut[x] = cval[fidx]; fidx=fidx+1; return x; end)
+            if miniIdx:size()[1] > 1 then
+                local miniBatch = batchIn:index(1,miniIdx):cuda()
+                local cval = net[i]:forward(miniBatch):type('torch.DoubleTensor')
+                fidx = 1
+                miniIdx:apply(function(x) batchOut[x] = cval[fidx]; fidx=fidx+1; return x; end)
+            end
         end
     end
 
@@ -101,9 +118,11 @@ function netBackward(net, batchIn, batchPhase, grad)
         local miniIdx = batchPhase:eq(i):nonzero()
         if miniIdx:nDimension() ~= 0 then
             miniIdx = miniIdx:select(2,1)
-            local miniBatch = batchIn:index(1,miniIdx):cuda()
-            local miniGrad = grad:index(1,miniIdx):cuda()
-            net[i]:backward(miniBatch, miniGrad)
+            if miniIdx:size()[1] > 1 then
+                local miniBatch = batchIn:index(1,miniIdx):cuda()
+                local miniGrad = grad:index(1,miniIdx):cuda()
+                net[i]:backward(miniBatch, miniGrad)
+            end
         end
     end
 end
@@ -134,15 +153,17 @@ env.hcpos = pdata.SARSA_list[{{mkidx},{idsrl['Pos_X'],idsrl['Pos_Y']}}]
 env.endpos = pdata.SARSA_list[{{endidx},{idsrl['Pos_X'],idsrl['Pos_Y']}}]
 env.inSize = input_size
 env.outSize = output_size
-print(env.wshpos, env.hcpos, env.endpos)
+env.grid2dpad = 4
+env.grid2d = pdata.voxel_grid[{{},{6,12},{}}]:max(2):view(env.width, env.length)
+env.grid2d = env.grid2d - env.grid2d:mean()
+env.grid2d = env.grid2d / env.grid2d:std()
+env.grid2d = nn.SpatialZeroPadding(env.grid2dpad,
+        env.grid2dpad, env.grid2dpad, env.grid2dpad):forward(env.grid2d:view(1,env.width, env.length))
+        :view(env.width+2*env.grid2dpad, env.length+2*env.grid2dpad)
 
 function env:query(state)
-    local den = torch.ones(1,self.inSize)
-    den[1][idsrl['Pos_X']] = self.width
-    den[1][idsrl['Pos_Y']] = self.height
-    qstate = torch.cdiv(state[{{},{1,2}}], den)*2-1
-    local phs = state[1][idsrl['Phase']]
-    return allNets[phs]:forward(qstate:cuda())
+    qstate, phs = self:normalize_points(state)
+    return allNets[phs[1][1]]:forward(qstate:cuda())
 end
 
 function env:new_state()
@@ -186,10 +207,8 @@ function env:reward(state, action, next_state)
         else
             reward = reward - 20
         end
-        --[[
     else
         reward = reward - 0.25*pdata.voxel_grid[{{x1},{5,10},{y1}}]:sum()
-        --]]
     end
     return reward
 end
@@ -231,7 +250,6 @@ function env:explore_action(state)
     local is_greed = torch.uniform() < self.epsilon
     local phs = state[1][idsrl['Phase']]
     local vec = self:query(state)
-    print('----', #state)
     local act = -1
 
     if is_greed then
@@ -242,7 +260,7 @@ function env:explore_action(state)
         local wc = actsrl['Do_WashCup']
         local hc = actsrl['Do_MakeHC']
         local f = actsrl['Finish']
-        local v = vec[1]
+        local v = vec
         local lu = {n,s,e,w,wc,hc,f}
 
         local opts = torch.Tensor({v[n],v[s],v[e],v[w],v[wc],v[hc],v[f]})
@@ -273,10 +291,10 @@ function env:gen_grid(s)
     local w = self.width
     local h = self.length
     inn = torch.zeros(w*h,self.inSize+1):cuda()
-    for x=0,(w-1) do
-        for y=0,(h-1) do
-            inn[1+x*h+y][idsrl['Pos_X']] = x
-            inn[1+x*h+y][idsrl['Pos_Y']] = y
+    for x=1,w do
+        for y=1,h do
+            inn[1+(x-1)*h+y-1][idsrl['Pos_X']] = x
+            inn[1+(x-1)*h+y-1][idsrl['Pos_Y']] = y
         end
     end
     inn, _ = self:normalize_points(inn)
@@ -286,10 +304,17 @@ end
 function env:normalize_points(pts)
     local w = self.width
     local h = self.length
-    pts[{{},{idsrl['Pos_X']}}] = pts[{{},{idsrl['Pos_X']}}]*2/w-1
-    pts[{{},{idsrl['Pos_Y']}}] = pts[{{},{idsrl['Pos_Y']}}]*2/h-1
-    retpts = pts[{{},{1,2}}]
-    retphs = pts[{{},{3}}]
+    local retpts = torch.Tensor(pts:size(1),1,9,9):cuda()
+    local retphs = torch.Tensor(pts:size(1),1)
+
+    for i=1,pts:size(1) do
+        local x = pts[i][1]+env.grid2dpad
+        local y = pts[i][2]+env.grid2dpad
+        local map = self.grid2d[{{x-4,x+4},{y-4,y+4}}]
+        retpts[i][1] = map
+        retphs[i][1] = pts[i][3]
+    end
+
 
     return retpts, retphs
 end

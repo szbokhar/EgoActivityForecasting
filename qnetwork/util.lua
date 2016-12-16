@@ -22,12 +22,12 @@ function util.rev_table(tbl)
 end
 
 function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fname_network, fname_mat)
-    local memoryState = nil
-    local memoryNState = nil
+    local memoryState = {}
+    local memoryNState = {}
     local memoryReward = nil
     local memoryTerm = nil
     local memoryMask = nil
-    local termIn = nil
+    local termIn = {}
     local termOut = nil
     local termTerm = nil
     local termMask = nil
@@ -45,77 +45,90 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
 
         local mask = torch.zeros(1,dynamics.outSize):scatter(2,torch.LongTensor{outIdx}:view(1,1),1)
 
-        input = dynamics:normalize_points(input)
-        new_state = dynamics:normalize_points(new_state)
+        input, phase = dynamics:normalize_points(input)
+        new_state, new_phase = dynamics:normalize_points(new_state)
 
         if not terminal then
-            if not memoryState then
-                memoryState = input:clone()
-                memoryNState = new_state:clone()
+            if not memoryState[1] then
+                memoryState[1] = input:clone()
+                memoryState[2] = phase:clone()
+                memoryNState[1] = new_state:clone()
+                memoryNState[2] = new_phase:clone()
                 memoryReward = output:clone()
                 memoryTerm = torch.Tensor(1,1):fill(util.bool2int(terminal))
                 memoryMask = mask:clone()
             end
-            if memoryState:size(1) < params.memory_size then
-                memoryState = torch.cat(memoryState, input,1)
-                memoryNState = torch.cat(memoryNState, new_state,1)
+            if memoryState[1]:size(1) < params.memory_size then
+                memoryState[1] = torch.cat(memoryState[1], input,1)
+                memoryState[2] = torch.cat(memoryState[2], phase,1)
+                memoryNState[1] = torch.cat(memoryNState[1], new_state,1)
+                memoryNState[2] = torch.cat(memoryNState[2], new_phase,1)
                 memoryReward = torch.cat(memoryReward, output,1)
                 memoryTerm = torch.cat(memoryTerm, torch.Tensor(1,1):fill(util.bool2int(terminal)),1)
                 memoryMask = torch.cat(memoryMask, mask,1)
             else
                 idx = torch.random(1,params.memory_size)
-                memoryState[idx] = input
-                memoryNState[idx] = new_state
+                memoryState[1][idx] = input
+                memoryState[2][idx] = phase
+                memoryNState[1][idx] = new_state
+                memoryNState[2][idx] = new_phase
                 memoryReward[idx] = output
                 memoryTerm[idx] = util.bool2int(terminal)
                 memoryMask[idx] = mask
             end
 
         else
-            if not termIn then
-                termIn = input:clone()
+            if not termIn[1] then
+                termIn[1] = input:clone()
+                termIn[2] = phase:clone()
                 termOut = output:clone()
                 termTerm = torch.Tensor(1,1):fill(util.bool2int(terminal))
                 termMask = mask:clone()
             end
-            if termIn:size(1) < params.memory_size then
-                termIn = torch.cat(termIn, input,1)
+            if termIn[1]:size(1) < params.memory_size then
+                termIn[1] = torch.cat(termIn[1], input,1)
+                termIn[2] = torch.cat(termIn[2], phase,1)
                 termOut = torch.cat(termOut, output,1)
                 termTerm = torch.cat(termTerm, torch.Tensor(1,1):fill(util.bool2int(terminal)),1)
                 termMask = torch.cat(termMask, mask,1)
             else
                 idx = torch.random(1,params.memory_size)
-                termIn[idx] = input
+                termIn[1][idx] = input
+                termIn[2][idx] = phase
                 termOut[idx] = output
                 termTerm[idx] = util.bool2int(terminal)
                 termMask[idx] = mask
             end
         end
 
-        if memoryState ~= nil then
-            ms = memoryState:size(1)
+        if memoryState[1] ~= nil then
+            ms = memoryState[1]:size(1)
             bs = math.min(params.batch_size, ms)
             ridx = torch.randperm(ms):type('torch.LongTensor')
-            batchState = memoryState:index(1, ridx[{{1,bs}}])
-            batchNState = memoryNState:index(1, ridx[{{1,bs}}])
+            batchState = {}
+            batchState[1] = memoryState[1]:index(1, ridx[{{1,bs}}])
+            batchState[2] = memoryState[2]:index(1, ridx[{{1,bs}}])
+            batchNState = {}
+            batchNState[1] = memoryNState[1]:index(1, ridx[{{1,bs}}])
+            batchNState[2] = memoryNState[2]:index(1, ridx[{{1,bs}}])
             batchTarget = memoryReward:index(1, ridx[{{1,bs}}])
             batchMask = memoryMask:index(1, ridx[{{1,bs}}])
             batchFinal = torch.zeros(#batchTarget)
 
-            local cvals = netForward(hat, batchNState[{{1,bs},{}}])
+            local cvals = netForward(hat, batchNState[1][{{1,bs},{}}], batchNState[2][{{1,bs},{}}])
             local nQvals, nQidx = cvals:max(2)
             nQvals = nQvals*params.gamma
             batchFinal:maskedCopy(batchMask:eq(1), nQvals)
             batchFinal = batchFinal + batchTarget
 
-            local result = netForward(net, batchState[{{1,bs},{}}])
+            local result = netForward(net, batchState[1][{{1,bs},{}}], batchState[2][{{1,bs},{}}])
 
             crit:forward(result, batchFinal[{{1,bs},{}}])
 
             netZeroGradParameters(net)
             local grad = crit:backward(result:cuda(), batchFinal[{{1,bs},{}}]:cuda())
             grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0):cuda(), 0)
-            netBackward(net, batchState[{{1,bs},{}}], grad)
+            netBackward(net, batchState[1][{{1,bs},{}}], batchState[2][{{1,bs},{}}], grad)
             netUpdateParameters(net, params.learning_rate)
             local loss = grad:pow(2):sum()
 
@@ -146,22 +159,24 @@ function util.train_qnetwork_3state(net, crit, params, dynamics, fnamesave, fnam
             end
         end
 
-        if termIn ~= nil then
-            ms = termIn:size(1)
+        if termIn[1] ~= nil then
+            ms = termIn[1]:size(1)
             bs = math.min(params.batch_size, ms)
             ridx = torch.randperm(ms):type('torch.LongTensor')
-            batchState = termIn:index(1, ridx[{{1,bs}}])
+            batchState = {}
+            batchState[1] = termIn[1]:index(1, ridx[{{1,bs}}])
+            batchState[2] = termIn[2]:index(1, ridx[{{1,bs}}])
             batchTarget = termOut:index(1, ridx[{{1,bs}}])
             batchMask = termMask:index(1, ridx[{{1,bs}}])
 
-            local result = netForward(net, batchState[{{1,bs},{}}])
+            local result = netForward(net, batchState[1][{{1,bs},{}}], batchState[2][{{1,bs},{}}])
 
             crit:forward(result, batchTarget[{{1,bs},{}}])
 
             netZeroGradParameters(net)
             local grad = crit:backward(result:cuda(), batchTarget[{{1,bs},{}}]:cuda())
             grad:maskedFill(batchMask[{{1,bs},{}}]:eq(0):cuda(), 0)
-            netBackward(net, batchState[{{1,bs},{}}], grad)
+            netBackward(net, batchState[1][{{1,bs},{}}], batchState[2][{{1,bs},{}}], grad)
             netUpdateParameters(net, params.learning_rate)
         end
 

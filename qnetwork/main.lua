@@ -17,7 +17,7 @@ Load config file and learn qnetwork
     -r, --state_reset       (default 150)
     -g, --gamma             (default 0.95)
     -c, --comments          (default '')
-    <def_file>              (string)
+    <def_file>              (string) eg. hconly.lua
     <savedir>               (string)
 ]]
 
@@ -36,6 +36,7 @@ file:write(cli_args.comments .. '\n')
 file:close()
 
 rl = dofile(cli_args.def_file)
+print(rl)
 
 qwidth = rl.env.width
 qheight = rl.env.length
